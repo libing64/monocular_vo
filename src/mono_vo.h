@@ -95,15 +95,14 @@ void mono_vo::mono_detect(Mat &left_img)
     Ptr<FeatureDetector> detector = cv::ORB::create();
     vector<KeyPoint> left_keypoints;
     detector->detect(left_img, left_keypoints);
-    vector<Point2f> left_feats, right_feats;
-    KeyPoint::convert(left_keypoints, left_feats);
+    KeyPoint::convert(left_keypoints, feats);
 
     left_img.copyTo(keyframe);
     qk = q;
     tk = t;
     cout << "mono detect: " << qk.coeffs().transpose() << "  tk: " << t.transpose() << endl;
-    cout << "feats size: " << left_feats.size() << endl;
-    mono_visualize(left_img, left_feats);
+    cout << "feats size: " << feats.size() << endl;
+    mono_visualize(left_img, feats);
 }
 
 void mono_vo::mono_visualize(Mat &left_img, vector<Point2f> &left_feats)
@@ -174,27 +173,27 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
     vector<float> err;
     vector<Point2f> feats_curr;
     cv::calcOpticalFlowPyrLK(keyframe, img, feats, feats_curr, status, err);
-    
-    int inlier_cnt = std::count(status.begin(), status.end(), 1);
-    return inlier_cnt;
-    
-    // int count = std::count(status.begin(), status.end(), 1);
 
-    // vector<Point3f> point3ds(count);
-    // vector<Point2f> points(count);
+    
+    int count = std::count(status.begin(), status.end(), 1);
+    cout << "track cnt: " << count << endl;
+    vector<Point3f> point3ds(count);
+    vector<Point2f> points(count);
 
-    // vector<Point2f> points_curr(count);
-    // int j = 0;
-    // for (auto i = 0; i < status.size(); i++)
-    // {
-    //     if (status[i])
-    //     {
-    //         point3ds[j] = feat3ds[i];
-    //         points_curr[j] = feats_curr[i];
-    //         points[j] = feats[i];
-    //         j++;
-    //     }
-    // }
+    vector<Point2f> points_curr(count);
+    int j = 0;
+    for (auto i = 0; i < status.size(); i++)
+    {
+        if (status[i])
+        {
+            //point3ds[j] = feat3ds[i];
+            points_curr[j] = feats_curr[i];
+            points[j] = feats[i];
+            j++;
+        }
+    }
+    visualize_features(img, feats, feats_curr, status);
+    return count;
     // Mat rvec, tvec;
     // Mat dR;
     // vector<uchar> inliers;
@@ -232,7 +231,8 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
 
 void mono_vo::update(Mat &left_img)
 {
-    if (feat3ds.empty() || feats.empty())
+    //if (feat3ds.empty() || feats.empty())
+    if (feats.empty())
     {
         q = Quaterniond::Identity();
         t = Vector3d::Zero();
