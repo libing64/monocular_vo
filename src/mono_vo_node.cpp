@@ -50,7 +50,7 @@ void image_callback(const sensor_msgs::ImageConstPtr &left_image_msg,
         //imshow("right", right_img);
         //waitKey(2);
         mono.timestamp = left_image_msg->header.stamp.toSec();
-        mono.update(left_img, right_img);
+        mono.update(left_img);
         //mono.mono_detect(left_img, right_img);
         publish_odom(mono);
         publish_pose(mono);
