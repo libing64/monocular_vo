@@ -45,10 +45,10 @@ public:
 
     void set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg);
 
-    void stereo_detect(Mat &left_img, Mat &right_img);
-    void stereo_visualize(Mat &left_img, Mat &right_img, vector<Point2f>&left_feats, vector<Point2f>&right_feats);
+    void mono_detect(Mat &left_img, Mat &right_img);
+    void mono_visualize(Mat &left_img, Mat &right_img, vector<Point2f>&left_feats, vector<Point2f>&right_feats);
 
-    int stereo_track(Mat& keyframe, Mat& img);
+    int mono_track(Mat& keyframe, Mat& img);
 
     void update(Mat& left_img, Mat& right_img);
     void visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar> &status);
@@ -89,7 +89,7 @@ void mono_vo::set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg)
     is_camera_info_init = true;
 }
 
-void mono_vo::stereo_detect(Mat &left_img, Mat &right_img)
+void mono_vo::mono_detect(Mat &left_img, Mat &right_img)
 {
     Ptr<FeatureDetector> detector = cv::ORB::create();
     vector<KeyPoint> left_keypoints;
@@ -140,11 +140,11 @@ void mono_vo::stereo_detect(Mat &left_img, Mat &right_img)
     left_img.copyTo(keyframe);
     qk = q;
     tk = t;
-    cout << "stereo detect: " << qk.coeffs().transpose() << "  tk: " << t.transpose() << endl;
-    stereo_visualize(left_img, right_img, left_feats, right_feats);
+    cout << "mono detect: " << qk.coeffs().transpose() << "  tk: " << t.transpose() << endl;
+    mono_visualize(left_img, right_img, left_feats, right_feats);
 }
 
-void mono_vo::stereo_visualize(Mat &left_img, Mat &right_img, vector<Point2f> &left_feats, vector<Point2f> &right_feats)
+void mono_vo::mono_visualize(Mat &left_img, Mat &right_img, vector<Point2f> &left_feats, vector<Point2f> &right_feats)
 {
     if (feat_vis_enable)
     {
@@ -176,12 +176,12 @@ void mono_vo::stereo_visualize(Mat &left_img, Mat &right_img, vector<Point2f> &l
                 circle(merge_img, right_feats[i], 1, right_color);
             }
         }
-        imshow("stereo match", merge_img);
+        imshow("mono match", merge_img);
         waitKey(2);
     }
 }
 
-int mono_vo::stereo_track(Mat &keyframe, Mat &img)
+int mono_vo::mono_track(Mat &keyframe, Mat &img)
 {
     vector<uchar> status;
     vector<float> err;
@@ -233,7 +233,7 @@ int mono_vo::stereo_track(Mat &keyframe, Mat &img)
         dq = Quaterniond(R.transpose());
         t = tk + qk.toRotationMatrix() * dt;
         q = qk * dq;
-        cout << "stereo track: " << q.coeffs().transpose() << "  t: " << t.transpose() << endl;
+        cout << "mono track: " << q.coeffs().transpose() << "  t: " << t.transpose() << endl;
     }
     int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
     return inlier_count;
@@ -246,13 +246,13 @@ void mono_vo::update(Mat &left_img, Mat &right_img)
         q = Quaterniond::Identity();
         t = Vector3d::Zero();
 
-        stereo_detect(left_img, right_img);
+        mono_detect(left_img, right_img);
     } else 
     {
-        int inlier_count = stereo_track(keyframe, left_img);
+        int inlier_count = mono_track(keyframe, left_img);
         if (inlier_count < min_feat_cnt)
         {
-            stereo_detect(left_img, right_img);
+            mono_detect(left_img, right_img);
         }
     }
 }

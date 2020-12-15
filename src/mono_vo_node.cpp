@@ -22,50 +22,50 @@ using namespace Eigen;
 using namespace cv;
 
 ros::Subscriber camera_info_sub;
-mono_vo stereo;
+mono_vo mono;
 
 ros::Publisher pub_odom, pub_pose, pub_path;
 
 Quaterniond q_cam2imu;
 
-void publish_odom(mono_vo &stereo);
-void publish_pose(mono_vo &stereo);
-void publish_path(mono_vo &stereo);
+void publish_odom(mono_vo &mono);
+void publish_pose(mono_vo &mono);
+void publish_path(mono_vo &mono);
 
 void camera_info_callback(const sensor_msgs::CameraInfoConstPtr &msg)
 {
-    if (!stereo.is_camera_info_init)
-        stereo.set_camere_info(msg);
+    if (!mono.is_camera_info_init)
+        mono.set_camere_info(msg);
     camera_info_sub.shutdown();
 }
 
 void image_callback(const sensor_msgs::ImageConstPtr &left_image_msg,
                     const sensor_msgs::ImageConstPtr &right_image_msg)
 {
-    if (stereo.is_camera_info_init)
+    if (mono.is_camera_info_init)
     {
         Mat left_img = cv_bridge::toCvCopy(left_image_msg, string("mono8"))->image;
         Mat right_img = cv_bridge::toCvCopy(right_image_msg, string("mono8"))->image;
         //imshow("left", left_img);
         //imshow("right", right_img);
         //waitKey(2);
-        stereo.timestamp = left_image_msg->header.stamp.toSec();
-        stereo.update(left_img, right_img);
-        //stereo.stereo_detect(left_img, right_img);
-        publish_odom(stereo);
-        publish_pose(stereo);
+        mono.timestamp = left_image_msg->header.stamp.toSec();
+        mono.update(left_img, right_img);
+        //mono.mono_detect(left_img, right_img);
+        publish_odom(mono);
+        publish_pose(mono);
     }
 
 }
 
-void publish_odom(mono_vo &stereo)
+void publish_odom(mono_vo &mono)
 {
     nav_msgs::Odometry odometry;
     odometry.header.frame_id = "odom";
-    odometry.header.stamp = ros::Time(stereo.timestamp);
+    odometry.header.stamp = ros::Time(mono.timestamp);
 
-    Eigen::Quaterniond q = q_cam2imu * stereo.q;
-    Eigen::Vector3d p = q_cam2imu.toRotationMatrix() * stereo.t;
+    Eigen::Quaterniond q = q_cam2imu * mono.q;
+    Eigen::Vector3d p = q_cam2imu.toRotationMatrix() * mono.t;
 
     odometry.child_frame_id = "base_link";
     odometry.pose.pose.position.x = p(0);
@@ -78,14 +78,14 @@ void publish_odom(mono_vo &stereo)
     pub_odom.publish(odometry);
 }
 
-void publish_pose(mono_vo &stereo)
+void publish_pose(mono_vo &mono)
 {
     static nav_msgs::Path path;
     geometry_msgs::PoseStamped pose;
-    Eigen::Quaterniond q = q_cam2imu * stereo.q;
-    Eigen::Vector3d p = q_cam2imu.toRotationMatrix() * stereo.t;
+    Eigen::Quaterniond q = q_cam2imu * mono.q;
+    Eigen::Vector3d p = q_cam2imu.toRotationMatrix() * mono.t;
 
-    pose.header.stamp = ros::Time(stereo.timestamp);
+    pose.header.stamp = ros::Time(mono.timestamp);
     pose.header.frame_id = "odom";
     pose.pose.orientation.w = q.w();
     pose.pose.orientation.x = q.x();
@@ -105,7 +105,7 @@ void publish_pose(mono_vo &stereo)
     //send transfrom
     static tf2_ros::TransformBroadcaster br;
     geometry_msgs::TransformStamped tr;
-    tr.header.stamp = ros::Time(stereo.timestamp);
+    tr.header.stamp = ros::Time(mono.timestamp);
     tr.header.frame_id = "odom";
     tr.child_frame_id = "base_link";
     tr.transform.translation.x = p(0);
@@ -118,10 +118,10 @@ void publish_pose(mono_vo &stereo)
     br.sendTransform(tr);
 }
 
-void publish_cloud(mono_vo &stereo)
+void publish_cloud(mono_vo &mono)
 {
     std_msgs::Header header;
-    header.stamp = ros::Time(stereo.timestamp);
+    header.stamp = ros::Time(mono.timestamp);
     header.frame_id = "base_link";
 }
 
@@ -140,8 +140,8 @@ int main(int argc, char** argv)
     sync.registerCallback(boost::bind(&image_callback, _1, _2));
 
     pub_odom = n.advertise<nav_msgs::Odometry>("/odom", 10);
-    pub_pose = n.advertise<geometry_msgs::PoseStamped>("/stereo_pose", 10);
-    pub_path = n.advertise<nav_msgs::Path>("/stereo_path", 10);
+    pub_pose = n.advertise<geometry_msgs::PoseStamped>("/mono_pose", 10);
+    pub_path = n.advertise<nav_msgs::Path>("/mono_path", 10);
 
 
     Matrix3d R_cam2imu;

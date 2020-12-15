@@ -1,4 +1,4 @@
-# 1. stereo vo
+# 1. monocular visual odometry
 
 
 ## 1.1 steps
