@@ -10,7 +10,7 @@
 #include <tf/transform_broadcaster.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
-#include "stereo_vo.h"
+#include "mono_vo.h"
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -22,15 +22,15 @@ using namespace Eigen;
 using namespace cv;
 
 ros::Subscriber camera_info_sub;
-stereo_vo stereo;
+mono_vo stereo;
 
 ros::Publisher pub_odom, pub_pose, pub_path;
 
 Quaterniond q_cam2imu;
 
-void publish_odom(stereo_vo &stereo);
-void publish_pose(stereo_vo &stereo);
-void publish_path(stereo_vo &stereo);
+void publish_odom(mono_vo &stereo);
+void publish_pose(mono_vo &stereo);
+void publish_path(mono_vo &stereo);
 
 void camera_info_callback(const sensor_msgs::CameraInfoConstPtr &msg)
 {
@@ -58,7 +58,7 @@ void image_callback(const sensor_msgs::ImageConstPtr &left_image_msg,
 
 }
 
-void publish_odom(stereo_vo &stereo)
+void publish_odom(mono_vo &stereo)
 {
     nav_msgs::Odometry odometry;
     odometry.header.frame_id = "odom";
@@ -78,7 +78,7 @@ void publish_odom(stereo_vo &stereo)
     pub_odom.publish(odometry);
 }
 
-void publish_pose(stereo_vo &stereo)
+void publish_pose(mono_vo &stereo)
 {
     static nav_msgs::Path path;
     geometry_msgs::PoseStamped pose;
@@ -118,7 +118,7 @@ void publish_pose(stereo_vo &stereo)
     br.sendTransform(tr);
 }
 
-void publish_cloud(stereo_vo &stereo)
+void publish_cloud(mono_vo &stereo)
 {
     std_msgs::Header header;
     header.stamp = ros::Time(stereo.timestamp);
@@ -127,7 +127,7 @@ void publish_cloud(stereo_vo &stereo)
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "stereo_vo");
+    ros::init(argc, argv, "mono_vo");
     ros::NodeHandle n("~");
 
     camera_info_sub = n.subscribe("/camera_info", 10, camera_info_callback);

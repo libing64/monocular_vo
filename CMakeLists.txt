@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(stereo_vo)
+project(mono_vo)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -116,7 +116,7 @@ find_package(OpenCV REQUIRED)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES stereo_vo
+#  LIBRARIES mono_vo
  CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs tf 
  DEPENDS EIGEN3
 )
@@ -137,7 +137,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/stereo_vo.cpp
+#   src/${PROJECT_NAME}/mono_vo.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -148,7 +148,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/stereo_vo_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/mono_vo_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -169,8 +169,8 @@ add_executable(kitti_loader  src/kitti_loader.cpp)
 target_link_libraries(kitti_loader ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS})
 
 
-add_executable(stereo_vo  src/stereo_vo_node.cpp)
-target_link_libraries(stereo_vo ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS})
+add_executable(mono_vo  src/mono_vo_node.cpp)
+target_link_libraries(mono_vo ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS})
 
 #############
 ## Install ##
@@ -219,7 +219,7 @@ target_link_libraries(stereo_vo ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_stereo_vo.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_mono_vo.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

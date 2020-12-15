@@ -1,5 +1,5 @@
-#ifndef __STEREO_VO_H
-#define __STEREO_VO_H
+#ifndef __mono_vo_H
+#define __mono_vo_H
 #include <iostream>
 #include <Eigen/Eigen>
 #include <vector>
@@ -10,7 +10,7 @@ using namespace std;
 using namespace Eigen;
 using namespace cv;
 
-class stereo_vo
+class mono_vo
 {
 private:
     int max_feat_cnt = 500;
@@ -40,8 +40,8 @@ public:
     vector<Point2f> feats;
     Mat masks;
 
-    stereo_vo();
-    ~stereo_vo();
+    mono_vo();
+    ~mono_vo();
 
     void set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg);
 
@@ -54,7 +54,7 @@ public:
     void visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar> &status);
 };
 
-stereo_vo::stereo_vo()
+mono_vo::mono_vo()
 {
     is_camera_info_init = false;
     qk = Quaterniond::Identity();
@@ -63,11 +63,11 @@ stereo_vo::stereo_vo()
     t = tk;
 }
 
-stereo_vo::~stereo_vo()
+mono_vo::~mono_vo()
 {
 }
 
-void stereo_vo::set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg)
+void mono_vo::set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg)
 {
     K = Matrix3d::Identity();
     K(0, 0) = msg->K[0];
@@ -89,7 +89,7 @@ void stereo_vo::set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg)
     is_camera_info_init = true;
 }
 
-void stereo_vo::stereo_detect(Mat &left_img, Mat &right_img)
+void mono_vo::stereo_detect(Mat &left_img, Mat &right_img)
 {
     Ptr<FeatureDetector> detector = cv::ORB::create();
     vector<KeyPoint> left_keypoints;
@@ -144,7 +144,7 @@ void stereo_vo::stereo_detect(Mat &left_img, Mat &right_img)
     stereo_visualize(left_img, right_img, left_feats, right_feats);
 }
 
-void stereo_vo::stereo_visualize(Mat &left_img, Mat &right_img, vector<Point2f> &left_feats, vector<Point2f> &right_feats)
+void mono_vo::stereo_visualize(Mat &left_img, Mat &right_img, vector<Point2f> &left_feats, vector<Point2f> &right_feats)
 {
     if (feat_vis_enable)
     {
@@ -181,7 +181,7 @@ void stereo_vo::stereo_visualize(Mat &left_img, Mat &right_img, vector<Point2f> 
     }
 }
 
-int stereo_vo::stereo_track(Mat &keyframe, Mat &img)
+int mono_vo::stereo_track(Mat &keyframe, Mat &img)
 {
     vector<uchar> status;
     vector<float> err;
@@ -239,7 +239,7 @@ int stereo_vo::stereo_track(Mat &keyframe, Mat &img)
     return inlier_count;
 }
 
-void stereo_vo::update(Mat &left_img, Mat &right_img)
+void mono_vo::update(Mat &left_img, Mat &right_img)
 {
     if (feat3ds.empty() || feats.empty())
     {
@@ -257,7 +257,7 @@ void stereo_vo::update(Mat &left_img, Mat &right_img)
     }
 }
 
-void stereo_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar>& status)
+void mono_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar>& status)
 {
     static Mat img_color;
     if (feat_vis_enable)
