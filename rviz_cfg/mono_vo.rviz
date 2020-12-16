@@ -6,10 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Grid1
-        - /Path1
-        - /Odometry1
-        - /Path2
+        - /Image1
       Splitter Ratio: 0.5852941274642944
     Tree Height: 535
   - Class: rviz/Selection
@@ -89,7 +86,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /stereo_path
+      Topic: /mono_path
       Unreliable: false
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -179,7 +176,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1026.3096923828125
+      Distance: 143.2488555908203
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -187,17 +184,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.13791634142398834
-        Y: 6.814798355102539
-        Z: -18.517702102661133
+        X: 12.33044147491455
+        Y: 2.883981227874756
+        Z: -7.812353134155273
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0402034521102905
+      Pitch: 0.4102039635181427
       Target Frame: <Fixed Frame>
-      Yaw: 3.832180976867676
+      Yaw: 3.1571757793426514
     Saved: ~
 Window Geometry:
   Displays:
