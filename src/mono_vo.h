@@ -192,8 +192,15 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
             j++;
         }
     }
-    visualize_features(img, feats, feats_curr, status);
-    return count;
+
+    Mat E, R, t;
+    vector<uchar> inliers;
+
+    E = findEssentialMat(points, points_curr, camera_matrix, cv::RANSAC, 0.999, 1.0, inliers);
+    recoverPose(E, points, points_curr, camera_matrix, R, t, inliers);
+
+    visualize_features(img, points, points_curr, inliers);
+    //return count;
     // Mat rvec, tvec;
     // Mat dR;
     // vector<uchar> inliers;
@@ -225,8 +232,8 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
     //     q = qk * dq;
     //     cout << "mono track: " << q.coeffs().transpose() << "  t: " << t.transpose() << endl;
     // }
-    // int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
-    // return inlier_count;
+    int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
+    return inlier_count;
 }
 
 void mono_vo::update(Mat &left_img)
