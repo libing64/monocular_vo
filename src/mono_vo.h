@@ -242,11 +242,11 @@ int mono_vo::mono_triangulate(Mat &keyframe, Mat &img)
         cout << "tvec: " << tvec << endl;
 
         // Camera 1 Projection Matrix K[I|0]
-        cv::Mat P1(3, 4, CV_32F, cv::Scalar(0));
+        cv::Mat P1(3, 4, CV_64F, cv::Scalar(0));
         camera_matrix.copyTo(P1.rowRange(0, 3).colRange(0, 3));
 
         // Camera 2 Projection Matrix K[R|t]
-        cv::Mat P2(3, 4, CV_32F);
+        cv::Mat P2(3, 4, CV_64F);
         rvec.copyTo(P2.rowRange(0, 3).colRange(0, 3));
         tvec.copyTo(P2.rowRange(0, 3).col(3));
         P2 = camera_matrix * P2;
