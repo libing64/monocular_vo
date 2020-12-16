@@ -193,11 +193,42 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
         }
     }
 
-    Mat E, R, t;
+    Mat E, rvec, tvec;
     vector<uchar> inliers;
 
     E = findEssentialMat(points, points_curr, camera_matrix, cv::RANSAC, 0.999, 1.0, inliers);
-    recoverPose(E, points, points_curr, camera_matrix, R, t, inliers);
+    int ret = recoverPose(E, points, points_curr, camera_matrix, rvec, tvec, inliers);
+
+    if (ret)
+    {
+        cout << "rvec: " << rvec << endl;
+        cout << "tvec: " << tvec << endl;
+
+        Matrix3d R;
+        Quaterniond dq;
+        Vector3d dt;
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                R(i, j) = rvec.at<double>(i, j);
+            }
+            dt(i) = tvec.at<double>(i);
+        }
+
+        cout << "R: " << R << endl;
+        dt = -R.transpose() * dt;
+        dq = Quaterniond(R.transpose());
+
+        cout << "delta: dq" << dq.coeffs().transpose() << "  dt: " << dt.transpose() << endl;
+
+        cout << "keyframe: qk" << qk.coeffs().transpose() << "  tk: " << tk.transpose() << endl;
+
+        t = tk + qk.toRotationMatrix() * dt;
+        q = qk * dq;
+        cout << "mono track: " << q.coeffs().transpose() << "  t: " << t.transpose() << endl;
+    }
+
 
     visualize_features(img, points, points_curr, inliers);
     //return count;
