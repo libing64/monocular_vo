@@ -156,9 +156,10 @@ void mono_vo::feature_extract(Mat &img)
     Mat mask = cv::Mat(img.size(), CV_8UC1, cv::Scalar(255));
     for (int i = 0; i < points_curr.size(); i++)
     {
-        circle(mask, points_curr[i], min_feat_dist, 0);
+        circle(mask, points_curr[i], min_feat_dist, cv::Scalar(0), cv::FILLED);
     }
 
+    imshow("mask", mask);
     Ptr<FeatureDetector> detector = cv::ORB::create();
     vector<KeyPoint> keypoints;
     detector->detect(img, keypoints, mask);
@@ -479,24 +480,25 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
 
 void mono_vo::update(Mat &img)
 {
-    if (feats.empty())
-    {
-        q = Quaterniond::Identity();
-        t = Vector3d::Zero();
+    feature_extract(img);
+    // if (feats.empty())
+    // {
+    //     q = Quaterniond::Identity();
+    //     t = Vector3d::Zero();
 
-        mono_detect(img);
-    } else if (feat3ds.empty())
-    {
-        mono_triangulate(keyframe, img);
-    }
-    else 
-    {
-        int inlier_count = mono_track(keyframe, img);
-        if (inlier_count < min_feat_cnt)
-        {
-            mono_detect(img);
-        }
-    }
+    //     mono_detect(img);
+    // } else if (feat3ds.empty())
+    // {
+    //     mono_triangulate(keyframe, img);
+    // }
+    // else 
+    // {
+    //     int inlier_count = mono_track(keyframe, img);
+    //     if (inlier_count < min_feat_cnt)
+    //     {
+    //         mono_detect(img);
+    //     }
+    // }
 }
 
 void mono_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar>& status)
