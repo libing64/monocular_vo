@@ -33,3 +33,6 @@ Ubuntu 20.04 + ros noetic
 - [ ] record screen to gif
 - [ ] mapping
 - [ ] fusing imu 
+
+
+# 3. OpenCV 升级

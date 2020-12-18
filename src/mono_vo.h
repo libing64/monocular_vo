@@ -3,6 +3,7 @@
 #include <iostream>
 #include <Eigen/Eigen>
 #include <vector>
+#include <map>
 #include <opencv2/opencv.hpp>
 #include <sensor_msgs/CameraInfo.h>
 
@@ -19,7 +20,7 @@ private:
     int min_feat_dist = 10;
     int min_disparity = 2;
     int max_epipolar = 5;
-    double min_parallex = 0.1;
+    double min_parallex = 0.05;
     bool feat_vis_enable = true;
     //camera matrix
     Matrix3d K;
@@ -37,25 +38,29 @@ public:
     Vector3d tk;
 
     int is_camera_info_init;
+    int frame_id;
+    int feat_id;
     vector<Point3f> feat3ds;
     vector<Point2f> feats;
     Mat masks;
+    map<int, map<int, Point2f> > feats_map;//feat_id and frame_id
 
     mono_vo();
     ~mono_vo();
 
     void set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg);
 
-    void mono_detect(Mat &left_img);
-    void mono_visualize(Mat &left_img, vector<Point2f> &left_feats);
-    void mono_visualize(Mat &left_img, Mat &right_img, vector<Point2f>&left_feats, vector<Point2f>&right_feats);
+    void mono_detect(Mat &img);
+    void feature_extract(Mat &img);
+    void mono_visualize(Mat &img, vector<Point2f> &left_feats);
+    void mono_visualize(Mat &img, Mat &right_img, vector<Point2f>&left_feats, vector<Point2f>&right_feats);
 
     double distance(Point2f& p1, Point2f& p2);
     double mono_parallex(vector<Point2f> &points, vector<Point2f> &points_curr, vector<uchar> &status);
     int mono_triangulate(Mat& keyframe, Mat& img);
     int mono_track(Mat &keyframe, Mat &img);
 
-    void update(Mat& left_img);
+    void update(Mat& img);
     void visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar> &status);
 };
 
@@ -66,6 +71,9 @@ mono_vo::mono_vo()
     tk = Vector3d::Zero();
     q = qk;
     t = tk;
+    frame_id = 0;
+    feat_id = 0;
+
 }
 
 mono_vo::~mono_vo()
@@ -94,35 +102,100 @@ void mono_vo::set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg)
     is_camera_info_init = true;
 }
 
-void mono_vo::mono_detect(Mat &left_img)
+void mono_vo::mono_detect(Mat &img)
 {
     Ptr<FeatureDetector> detector = cv::ORB::create();
-    vector<KeyPoint> left_keypoints;
-    detector->detect(left_img, left_keypoints);
-    KeyPoint::convert(left_keypoints, feats);
+    vector<KeyPoint> keypoints;
+    detector->detect(img, keypoints);
+    KeyPoint::convert(keypoints, feats);
 
-    left_img.copyTo(keyframe);
+    img.copyTo(keyframe);
     feat3ds.clear();
     qk = q;
     tk = t;
     cout << "mono detect: " << qk.coeffs().transpose() << "  tk: " << t.transpose() << endl;
     cout << "feats size: " << feats.size() << endl;
-    mono_visualize(left_img, feats);
+    mono_visualize(img, feats);
 }
 
+void mono_vo::feature_extract(Mat &img)
+{
+    static vector<Point2f> feats_prev;
+    static vector<int> feats_id_prev;
+    static Mat img_prev;
 
-void mono_vo::mono_visualize(Mat &left_img, vector<Point2f> &left_feats)
+    vector<Point2f> points_prev;
+    vector<Point2f> points_curr;
+    vector<int> points_id_curr;
+
+    if (!feats_prev.empty())//track features
+    {
+        vector<uchar> status;
+        vector<float> err;
+        vector<Point2f> feats_curr;
+        cv::calcOpticalFlowPyrLK(img_prev, img, feats_prev, feats_curr, status, err);
+        int count = std::count(status.begin(), status.end(), 1);
+
+        visualize_features(img, feats_prev, feats_curr, status);
+
+        points_curr.resize(count);
+        points_id_curr.resize(count);
+        int j = 0;
+        for (auto i = 0; i < status.size(); i++)
+        {
+            if (status[i])
+            {
+                points_curr[j] = feats_curr[i];
+                points_id_curr[j] = feats_id_prev[i];
+                j++;
+            }
+        }
+    }
+
+    //add mask and detect new features
+    Mat mask = cv::Mat(img.size(), CV_8UC1, cv::Scalar(255));
+    for (int i = 0; i < points_curr.size(); i++)
+    {
+        circle(mask, points_curr[i], min_feat_dist, 0);
+    }
+
+    Ptr<FeatureDetector> detector = cv::ORB::create();
+    vector<KeyPoint> keypoints;
+    detector->detect(img, keypoints, mask);
+    KeyPoint::convert(keypoints, feats);
+
+
+    //save points_curr and  to feats_map
+    for (int i = 0; i < feats.size(); i++)
+    {
+        feat_id++;
+        points_curr.push_back(feats[i]);
+        points_id_curr.push_back(feat_id);
+    }
+
+
+    cout << "mono track feat: " << points_curr.size() << endl;
+    cout << "mono detect feat: " << keypoints.size() << endl;
+
+
+    img.copyTo(img_prev);
+    feats_prev = points_curr;
+    feats_id_prev = points_id_curr;
+    frame_id++;
+}
+
+void mono_vo::mono_visualize(Mat &img, vector<Point2f> &left_feats)
 {
     if (feat_vis_enable)
     {
-        Mat color_img = Mat(left_img.rows, left_img.cols, CV_8UC3);
-        if (left_img.channels() == 3)
+        Mat color_img = Mat(img.rows, img.cols, CV_8UC3);
+        if (img.channels() == 3)
         {
-            left_img.copyTo(color_img(Rect(0, 0, left_img.cols, left_img.rows)));
+            img.copyTo(color_img(Rect(0, 0, img.cols, img.rows)));
         }
         else
         {
-            cvtColor(left_img, color_img, cv::COLOR_GRAY2RGB);
+            cvtColor(img, color_img, cv::COLOR_GRAY2RGB);
         }
 
         Scalar color = Scalar(0, 0, 255);
@@ -136,29 +209,29 @@ void mono_vo::mono_visualize(Mat &left_img, vector<Point2f> &left_feats)
     }
 }
 
-void mono_vo::mono_visualize(Mat &left_img, Mat &right_img, vector<Point2f> &left_feats, vector<Point2f> &right_feats)
+void mono_vo::mono_visualize(Mat &img, Mat &right_img, vector<Point2f> &left_feats, vector<Point2f> &right_feats)
 {
     if (feat_vis_enable)
     {
-        Mat merge_img = Mat(left_img.rows * 2, left_img.cols, CV_8UC3);
-        if (left_img.channels() == 3)
+        Mat merge_img = Mat(img.rows * 2, img.cols, CV_8UC3);
+        if (img.channels() == 3)
         {
-            left_img.copyTo(merge_img(Rect(0, 0, left_img.cols, left_img.rows)));
-            right_img.copyTo(merge_img(Rect(0, left_img.rows, right_img.cols, right_img.rows)));
+            img.copyTo(merge_img(Rect(0, 0, img.cols, img.rows)));
+            right_img.copyTo(merge_img(Rect(0, img.rows, right_img.cols, right_img.rows)));
         }
         else
         {
-            Mat left_img_color, right_img_color;
-            cvtColor(left_img, left_img_color, cv::COLOR_GRAY2RGB);
+            Mat img_color, right_img_color;
+            cvtColor(img, img_color, cv::COLOR_GRAY2RGB);
             cvtColor(right_img, right_img_color, cv::COLOR_GRAY2RGB);
-            left_img_color.copyTo(merge_img(Rect(0, 0, left_img.cols, left_img.rows)));
-            right_img_color.copyTo(merge_img(Rect(0, left_img.rows, right_img.cols, right_img.rows)));
+            img_color.copyTo(merge_img(Rect(0, 0, img.cols, img.rows)));
+            right_img_color.copyTo(merge_img(Rect(0, img.rows, right_img.cols, right_img.rows)));
         }
 
         Scalar color = Scalar(0, 0, 255);
         Scalar left_color = Scalar(255, 0, 0);
         Scalar right_color = Scalar(0, 255, 0);
-        Point2f delta(0, left_img.rows);
+        Point2f delta(0, img.rows);
         for (int i = 0; i < feats.size(); i++)
         {
             //if (status[i])
@@ -273,7 +346,9 @@ int mono_vo::mono_triangulate(Mat &keyframe, Mat &img)
 
         cv::triangulatePoints(P1, P2, inlier_points, inlier_points_curr, points_4d);
         point3ds.clear();
+        feats.clear();
 
+        feats = inlier_points;
         for (int i = 0; i < points_4d.cols; i++)
         {
             point3ds.push_back(cv::Point3d(points_4d.at<double>(0, i) / points_4d.at<double>(3, i),
@@ -402,24 +477,24 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
     return inlier_count;
 }
 
-void mono_vo::update(Mat &left_img)
+void mono_vo::update(Mat &img)
 {
     if (feats.empty())
     {
         q = Quaterniond::Identity();
         t = Vector3d::Zero();
 
-        mono_detect(left_img);
+        mono_detect(img);
     } else if (feat3ds.empty())
     {
-        mono_triangulate(keyframe, left_img);
+        mono_triangulate(keyframe, img);
     }
     else 
     {
-        int inlier_count = mono_track(keyframe, left_img);
+        int inlier_count = mono_track(keyframe, img);
         if (inlier_count < min_feat_cnt)
         {
-            mono_detect(left_img);
+            mono_detect(img);
         }
     }
 }
