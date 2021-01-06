@@ -92,11 +92,23 @@ void mono_vo::set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg)
 
 void mono_vo::mono_detect(Mat &img)
 {
-    Ptr<FeatureDetector> detector = cv::ORB::create(max_feat_cnt);
-    vector<KeyPoint> keypoints;
-    detector->detect(img, keypoints);
-    KeyPoint::convert(keypoints, feats);
+    Mat mask = cv::Mat(img.size(), CV_8UC1, cv::Scalar(255));
+    feats.clear();
+    for (int i = 0; i < 5; i++)
+    {
+        Ptr<FeatureDetector> detector = cv::ORB::create(max_feat_cnt / 5);
+        vector<KeyPoint> keypoints;
+        detector->detect(img, keypoints);
 
+        vector<Point2f> feats_curr;
+        KeyPoint::convert(keypoints, feats_curr);
+        //add feats to feats
+        for (int j = 0; j < feats_curr.size(); j++)
+        {
+            feats.push_back(feats_curr[j]);
+            circle(mask, feats_curr[j], min_feat_dist, cv::Scalar(0), cv::FILLED);
+        }
+    }
     img.copyTo(keyframe);
     qk = q;
     tk = t;
