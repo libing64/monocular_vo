@@ -14,7 +14,7 @@ using namespace cv;
 class mono_vo
 {
 private:
-    int max_feat_cnt = 500;
+    int max_feat_cnt = 1000;
     int min_feat_cnt = 100;
     int min_track_cnt = 50;
     int min_feat_dist = 10;
@@ -91,7 +91,7 @@ void mono_vo::set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg)
 
 void mono_vo::mono_detect(Mat &img)
 {
-    Ptr<FeatureDetector> detector = cv::ORB::create();
+    Ptr<FeatureDetector> detector = cv::ORB::create(max_feat_cnt);
     vector<KeyPoint> keypoints;
     detector->detect(img, keypoints);
     KeyPoint::convert(keypoints, feats);
@@ -191,7 +191,7 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
     Mat dR;
     vector<uchar> inliers;
 
-    E = findEssentialMat(points_prev, points_curr, camera_matrix, RANSAC, 0.999, 1.0, inliers); //threshold!!!
+    E = findEssentialMat(points_prev, points_curr, camera_matrix, RANSAC, 0.99, 1.0, inliers); //threshold!!!
     int ret = recoverPose(E, points_prev, points_curr, camera_matrix, rvec, tvec, inliers);
 
     cout << "rvec: " << rvec << endl;
@@ -212,11 +212,13 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
 
         dt = Vector3d(0, 0, 1);
         dq = Quaterniond(R.transpose());
-        t = tk + qk.toRotationMatrix() * dt;
+        t = t + q.toRotationMatrix() * dt;
         q = qk * dq;
         cout << "mono track: " << q.coeffs().transpose() << endl << "t: " << t.transpose() << endl;
     }
     int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
+    double inlier_rate = 1.0 * inlier_count / inliers.size();
+    cout << "inlier rate: " << inlier_rate << endl;
     return inlier_count;
 }
 
