@@ -48,6 +48,7 @@ public:
     void mono_visualize(Mat &img, vector<Point2f> &left_feats);
     void mono_visualize(Mat &img, Mat &right_img, vector<Point2f>&left_feats, vector<Point2f>&right_feats);
 
+    void remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr);
     int mono_track(Mat &keyframe, Mat &img);
 
     void update(Mat& img);
@@ -166,6 +167,25 @@ void mono_vo::mono_visualize(Mat &img, Mat &right_img, vector<Point2f> &left_fea
     }
 }
 
+void mono_vo::remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr)
+{
+    vector<uchar> status;
+    Mat F = findFundamentalMat(feats_prev, feats_curr, FM_RANSAC, 1.0, 0.99, status);
+    int j = 0;
+    for (int i = 0; i < status.size(); i++)
+    {
+        if (status[i] && (i != j))
+        {
+            feats_prev[j] = feats_prev[i];
+            feats_curr[j] = feats_curr[i];
+            j++;
+        }
+    }
+    feats_prev.resize(j);
+    feats_curr.resize(j);
+    cout << "inlier percent: " << (feats_prev.size() * 1.0) / status.size() << endl;
+}
+
 int mono_vo::mono_track(Mat &keyframe, Mat &img)
 {
     vector<uchar> status;
@@ -187,6 +207,8 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
             j++;
         }
     }
+
+    remove_outliers(points_prev, points_curr);
     Mat E, rvec, tvec;
     Mat dR;
     vector<uchar> inliers;
@@ -197,7 +219,13 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
     cout << "rvec: " << rvec << endl;
     cout << "tvec: " << tvec << endl;
     visualize_features(img, points_prev, points_curr, inliers);
-    if (ret)
+
+
+    int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
+    double inlier_rate = 1.0 * inlier_count / inliers.size();
+    cout << "inlier rate: " << inlier_rate << endl;
+
+    if (ret && inlier_count >= min_feat_cnt)
     {
         Matrix3d R;
         Quaterniond dq;
@@ -216,9 +244,7 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
         q = qk * dq;
         cout << "mono track: " << q.coeffs().transpose() << endl << "t: " << t.transpose() << endl;
     }
-    int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
-    double inlier_rate = 1.0 * inlier_count / inliers.size();
-    cout << "inlier rate: " << inlier_rate << endl;
+
     return inlier_count;
 }
 
