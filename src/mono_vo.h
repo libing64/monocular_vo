@@ -99,7 +99,7 @@ void mono_vo::mono_detect(Mat &img)
     img.copyTo(keyframe);
     qk = q;
     tk = t;
-    cout << "mono detect: " << qk.coeffs().transpose() << "  tk: " << t.transpose() << endl;
+    cout << "mono detect: qk: " << qk.coeffs().transpose() << endl << "tk: " << t.transpose() << endl;
     cout << "feats size: " << feats.size() << endl;
     mono_visualize(img, feats);
 }
@@ -199,8 +199,6 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
     visualize_features(img, points_prev, points_curr, inliers);
     if (ret)
     {
-        cv::Rodrigues(rvec, dR);
-
         Matrix3d R;
         Quaterniond dq;
         Vector3d dt;
@@ -208,7 +206,7 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
         {
             for (int j = 0; j < 3; j++)
             {
-                R(i, j) = dR.at<double>(i, j);
+                R(i, j) = rvec.at<double>(i, j);
             }
         }
 
@@ -216,7 +214,7 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
         dq = Quaterniond(R.transpose());
         t = tk + qk.toRotationMatrix() * dt;
         q = qk * dq;
-        cout << "stereo track: " << q.coeffs().transpose() << "  t: " << t.transpose() << endl;
+        cout << "mono track: " << q.coeffs().transpose() << endl << "t: " << t.transpose() << endl;
     }
     int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
     return inlier_count;
