@@ -27,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Image
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -55,7 +55,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /kitti_stereo/left/image_rect
+      Image Topic: /image_left
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -176,7 +176,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 143.2488555908203
+      Distance: 517.64794921875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -184,17 +184,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 12.33044147491455
-        Y: 2.883981227874756
-        Z: -7.812353134155273
+        X: 91.30774688720703
+        Y: -5.320816516876221
+        Z: 67.6378402709961
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4102039635181427
+      Pitch: 0.8902042508125305
       Target Frame: <Fixed Frame>
-      Yaw: 3.1571757793426514
+      Yaw: 3.1421761512756348
     Saved: ~
 Window Geometry:
   Displays:

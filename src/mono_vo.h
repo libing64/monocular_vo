@@ -15,7 +15,7 @@ class mono_vo
 {
 private:
     int max_feat_cnt = 1000;
-    int min_feat_cnt = 100;
+    int min_feat_cnt = 1000;
     int min_track_cnt = 50;
     int min_feat_dist = 10;
     int min_disparity = 2;
@@ -92,9 +92,13 @@ void mono_vo::set_camere_info(const sensor_msgs::CameraInfoConstPtr& msg)
 
 void mono_vo::mono_detect(Mat &img)
 {
-    Ptr<FeatureDetector> detector = cv::ORB::create(max_feat_cnt);
+
     vector<KeyPoint> keypoints;
-    detector->detect(img, keypoints);
+
+    //Ptr<FeatureDetector> detector = cv::ORB::create(max_feat_cnt);
+    //detector->detect(img, keypoints);
+    cv::FAST(img, keypoints, 20, true);
+
     KeyPoint::convert(keypoints, feats);
 
     img.copyTo(keyframe);
@@ -225,7 +229,7 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
     double inlier_rate = 1.0 * inlier_count / inliers.size();
     cout << "inlier rate: " << inlier_rate << endl;
 
-    if (ret && inlier_count >= min_feat_cnt)
+    if (ret && inlier_rate > 0.2)
     {
         Matrix3d R;
         Quaterniond dq;
