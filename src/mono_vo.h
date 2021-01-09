@@ -11,6 +11,12 @@ using namespace std;
 using namespace Eigen;
 using namespace cv;
 
+static bool CvKeyPointResponseCompare(const cv::KeyPoint &p1,
+                                      const cv::KeyPoint &p2)
+{
+    return (p1.response > p2.response);
+}
+
 class mono_vo
 {
 private:
@@ -21,6 +27,7 @@ private:
     int min_disparity = 2;
     int max_epipolar = 5;
     bool feat_vis_enable = true;
+    float vel = 0.8;//0.8 * 30fps = 24m/s
     //camera matrix
     Matrix3d K;
     double baseline;
@@ -95,11 +102,28 @@ void mono_vo::mono_detect(Mat &img)
 
     vector<KeyPoint> keypoints;
 
+
+    //1. orb features
     //Ptr<FeatureDetector> detector = cv::ORB::create(max_feat_cnt);
     //detector->detect(img, keypoints);
-    cv::FAST(img, keypoints, 20, true);
+    //KeyPoint::convert(keypoints, feats);
 
-    KeyPoint::convert(keypoints, feats);
+    //2. FAST feature
+    int thresh = 10;
+    Mat mask = cv::Mat(img.size(), CV_8UC1, cv::Scalar(255));
+    Ptr<FastFeatureDetector> detector = FastFeatureDetector::create(thresh);
+    detector->detect(img, keypoints, mask);
+    sort(keypoints.begin(), keypoints.end(), CvKeyPointResponseCompare);
+    for (int i = 0; i < keypoints.size(); i++)
+    {
+        if (feats.size() < max_feat_cnt && mask.at<unsigned char>(keypoints[i].pt.y, keypoints[i].pt.x))
+        {
+            feats.push_back(keypoints[i].pt);
+            circle(mask, keypoints[i].pt, min_feat_dist, cv::Scalar(0), cv::FILLED);
+        }
+    }
+
+
 
     img.copyTo(keyframe);
     qk = q;
@@ -242,7 +266,7 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
             }
         }
 
-        dt = Vector3d(0, 0, 1);
+        dt = Vector3d(0, 0, vel);
         dq = Quaterniond(R.transpose());
         t = t + q.toRotationMatrix() * dt;
         q = qk * dq;
