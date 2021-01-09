@@ -9,6 +9,8 @@
 * Local Optimiation(Bundle adjustment)
 
 
+![kitti00](https://github.com/libing64/mono_vo/blob/master/image/mono_vo_so3.png)
+
 ## 1.2 Building
 ```
 cd catkin_ws/src
