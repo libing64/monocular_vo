@@ -9,7 +9,7 @@
 * Local Optimiation(Bundle adjustment)
 
 
-![kitti00](https://github.com/libing64/mono_vo/blob/master/image/mono_vo_so3.png)
+![kitti00](https://github.com/libing64/mono_vo/blob/mono_vo_so3/image/mono_vo_so3.png)
 
 ## 1.2 Building
 ```
