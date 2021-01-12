@@ -17,6 +17,12 @@ static bool CvKeyPointResponseCompare(const cv::KeyPoint &p1,
     return (p1.response > p2.response);
 }
 
+static double distance(Point2f &p1, Point2f &p2)
+{
+    Point2f p = p1 - p2;
+    return sqrtf(p.dot(p));
+}
+
 class mono_vo
 {
 private:
@@ -45,6 +51,7 @@ public:
 
     int is_camera_info_init;
     vector<Point2f> feats;
+    vector<Point3f> point3ds;
 
     mono_vo();
     ~mono_vo();
@@ -60,6 +67,14 @@ public:
 
     void update(Mat& img);
     void visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar> &status);
+
+
+    //add mapping
+    bool add_keyframe(Mat& img);
+    double mono_parallex(vector<Point2f> &points, vector<Point2f> &points_curr, vector<uchar> &status);
+    bool is_keyframe();
+    void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D)
+
 };
 
 mono_vo::mono_vo()
@@ -273,6 +288,41 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
         cout << "mono track: " << q.coeffs().transpose() << endl << "t: " << t.transpose() << endl;
     }
 
+    //triangulate tracked points, which was first tracked?
+    if (point3ds.empty())
+    {
+        int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
+
+        vector<Point2f> inlier_points_prev(inlier_count);
+        vector<Point2f> inlier_points_curr(inlier_count);
+        int j = 0;
+        for (auto i = 0; i < inliers.size(); i++)
+        {
+            if (inliers[i])
+            {
+                inlier_points_curr[j] = points_curr[i];
+                inlier_points_prev[j] = points_prev[i];
+                j++;
+            }
+        }
+
+        cv::Mat points_4d;
+        // Camera 1 Projection Matrix K[I|0]
+        cv::Mat P1(3, 4, CV_64F, cv::Scalar(0));
+        camera_matrix.copyTo(P1.rowRange(0, 3).colRange(0, 3));
+
+        // Camera 2 Projection Matrix K[R|t]
+        cv::Mat P2(3, 4, CV_64F);
+        rvec.copyTo(P2.rowRange(0, 3).colRange(0, 3));
+        tvec.copyTo(P2.rowRange(0, 3).col(3));
+        P2 = camera_matrix * P2;
+
+        cv::triangulatePoints(P1, P2, inlier_points_prev, inlier_points_curr, points_4d);
+        point3ds.clear();
+        feats.clear();
+    }
+
+
     return inlier_count;
 }
 
@@ -291,6 +341,10 @@ void mono_vo::update(Mat &img)
         if (inlier_count < min_feat_cnt)
         {
             mono_detect(img);
+        } else 
+        {
+            //detect new features
+
         }
     }
 }
@@ -317,6 +371,35 @@ void mono_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2
         imshow("feats", img_color);
         waitKey(2);
     }
+}
+
+
+
+double mono_vo::mono_parallex(vector<Point2f> &points, vector<Point2f> &points_curr, vector<uchar> &status)
+{
+    int count = std::count(status.begin(), status.end(), 1);
+    double parallex_sum = 0;
+    for (int i = 0; i < points.size(); i++)
+    {
+        parallex_sum += distance(points[i], points_curr[i]);
+    }
+    double parallex = parallex_sum / count;
+    return parallex;
+}
+
+void mono_vo::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D)
+{
+    cv::Mat A(4, 4, CV_32F);
+
+    A.row(0) = kp1.pt.x * P1.row(2) - P1.row(0);
+    A.row(1) = kp1.pt.y * P1.row(2) - P1.row(1);
+    A.row(2) = kp2.pt.x * P2.row(2) - P2.row(0);
+    A.row(3) = kp2.pt.y * P2.row(2) - P2.row(1);
+
+    cv::Mat u, w, vt;
+    cv::SVD::compute(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+    x3D = vt.row(3).t();
+    x3D = x3D.rowRange(0, 3) / x3D.at<float>(3);
 }
 
 #endif
