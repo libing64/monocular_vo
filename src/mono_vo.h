@@ -34,6 +34,7 @@ private:
     int max_epipolar = 5;
     bool feat_vis_enable = true;
     float vel = 0.8;//0.8 * 30fps = 24m/s
+    double min_parallx = 10.0;
     //camera matrix
     Matrix3d K;
     double baseline;
@@ -51,7 +52,7 @@ public:
 
     int is_camera_info_init;
     vector<Point2f> feats;
-    vector<Point3f> point3ds;
+    vector<Point3f> feat3ds;
 
     mono_vo();
     ~mono_vo();
@@ -70,10 +71,13 @@ public:
 
 
     //add mapping
+    int mono_track(Mat &keyframe, Mat &img, vector<Point2f>& feats_prev, vector<Point2f>& feats_curr, vector<int>& feats_index);
     bool add_keyframe(Mat& img);
     double mono_parallex(vector<Point2f> &points, vector<Point2f> &points_curr, vector<uchar> &status);
+    double mono_parallex(vector<Point2f> &points, vector<Point2f> &points_curr);
     bool is_keyframe();
-    void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D)
+    void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D);
+    void map_init(vector<Point2f>& feats_prev, vector<Point2f>& feats_curr, vector<Point3f>& feat3ds, Quaterniond& q_prev, Vector3d& t_prev, Quaterniond& q_curr, Vector3d& t_curr);
 
 };
 
@@ -289,41 +293,90 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
     }
 
     //triangulate tracked points, which was first tracked?
-    if (point3ds.empty())
-    {
-        int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
+    // if (point3ds.empty())
+    // {
+    //     int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
 
-        vector<Point2f> inlier_points_prev(inlier_count);
-        vector<Point2f> inlier_points_curr(inlier_count);
-        int j = 0;
-        for (auto i = 0; i < inliers.size(); i++)
-        {
-            if (inliers[i])
-            {
-                inlier_points_curr[j] = points_curr[i];
-                inlier_points_prev[j] = points_prev[i];
-                j++;
-            }
-        }
+    //     vector<Point2f> inlier_points_prev(inlier_count);
+    //     vector<Point2f> inlier_points_curr(inlier_count);
+    //     int j = 0;
+    //     for (auto i = 0; i < inliers.size(); i++)
+    //     {
+    //         if (inliers[i])
+    //         {
+    //             inlier_points_curr[j] = points_curr[i];
+    //             inlier_points_prev[j] = points_prev[i];
+    //             j++;
+    //         }
+    //     }
 
-        cv::Mat points_4d;
-        // Camera 1 Projection Matrix K[I|0]
-        cv::Mat P1(3, 4, CV_64F, cv::Scalar(0));
-        camera_matrix.copyTo(P1.rowRange(0, 3).colRange(0, 3));
+    //     cv::Mat points_4d;
+    //     // Camera 1 Projection Matrix K[I|0]
+    //     cv::Mat P1(3, 4, CV_64F, cv::Scalar(0));
+    //     camera_matrix.copyTo(P1.rowRange(0, 3).colRange(0, 3));
 
-        // Camera 2 Projection Matrix K[R|t]
-        cv::Mat P2(3, 4, CV_64F);
-        rvec.copyTo(P2.rowRange(0, 3).colRange(0, 3));
-        tvec.copyTo(P2.rowRange(0, 3).col(3));
-        P2 = camera_matrix * P2;
+    //     // Camera 2 Projection Matrix K[R|t]
+    //     cv::Mat P2(3, 4, CV_64F);
+    //     rvec.copyTo(P2.rowRange(0, 3).colRange(0, 3));
+    //     tvec.copyTo(P2.rowRange(0, 3).col(3));
+    //     P2 = camera_matrix * P2;
 
-        cv::triangulatePoints(P1, P2, inlier_points_prev, inlier_points_curr, points_4d);
-        point3ds.clear();
-        feats.clear();
-    }
+    //     cv::triangulatePoints(P1, P2, inlier_points_prev, inlier_points_curr, points_4d);
+    //     point3ds.clear();
+    //     feats.clear();
+    // }
 
 
     return inlier_count;
+}
+
+int mono_vo::mono_track(Mat &keyframe, Mat &img, vector<Point2f>& feats_prev, vector<Point2f>& feats_curr, vector<int>& feats_index)
+{
+    vector<uchar> status;
+    vector<float> err;
+    cv::calcOpticalFlowPyrLK(keyframe, img, feats_prev, feats_curr, status, err);
+    int count = std::count(status.begin(), status.end(), 1);
+
+    vector<Point2f> points_prev(count);
+    vector<Point2f> points_curr(count);
+    vector<int> points_index(count);//index to feats_prev
+    int j = 0;
+    for (auto i = 0; i < status.size(); i++)
+    {
+        if (status[i])
+        {
+            points_curr[j] = feats_curr[i];
+            points_prev[j] = feats_prev[i];
+            points_index[j] = i;
+            j++;
+        }
+    }
+    //remove outliers wit F matrix
+    status.clear();
+    Mat F = findFundamentalMat(points_prev, points_curr, FM_RANSAC, 1.0, 0.99, status);
+    j = 0;
+    for (int i = 0; i < status.size(); i++)
+    {
+        if (status[i] && (i != j))
+        {
+            points_prev[j] = points_prev[i];
+            points_curr[j] = points_curr[i];
+            points_index[j] = points_index[i];
+            j++;
+        }
+    }
+    points_prev.resize(j);
+    points_curr.resize(j);
+    points_index.resize(j);
+
+    feats_prev = points_prev;
+    feats_curr = points_curr;
+    feats_index = points_index;
+
+    cout << "feats_prev size: " << feats_prev.size() << endl;
+    cout << "feats_curr size: " << feats_curr.size() << endl;
+
+    return feats_curr.size();
 }
 
 void mono_vo::update(Mat &img)
@@ -333,9 +386,42 @@ void mono_vo::update(Mat &img)
     {
         q = Quaterniond::Identity();
         t = Vector3d::Zero();
-
         mono_detect(img);
+        return;
+    }
+
+    vector<Point2f> feats_prev = feats;
+    vector<Point2f> feats_curr;
+    vector<int> feats_index;
+    int tracking_count = mono_track(keyframe, img, feats_prev, feats_curr, feats_index);
+    printf("tracking feat cnt: %d\n", tracking_count);
+    //whether keyframe
+    bool parallax = mono_parallex(feats_prev, feats_curr);
+    printf("parallax: %lf\n", parallax);
+
+    if (parallax > min_parallx)
+    {
+        if (feat3ds.empty())
+        {
+            //map init with feats_prev and feats_curr
+            map_init(feats_prev, feats_curr, feat3ds, qk, tk, q, t);
+        } else 
+        {
+            //add keyframe to map 
+
+        }
     } else 
+    {
+        return;
+    }
+
+
+
+    if (feat3ds.empty())
+    {
+
+    } 
+    else 
     {
         int inlier_count = mono_track(keyframe, img);
         if (inlier_count < min_feat_cnt)
@@ -348,6 +434,82 @@ void mono_vo::update(Mat &img)
         }
     }
 }
+
+ void mono_vo::map_init(vector<Point2f>& feats_prev, vector<Point2f>& feats_curr, vector<Point3f>& feat3ds, 
+               Quaterniond& q_prev, Vector3d& t_prev, 
+               Quaterniond& q_curr, Vector3d& t_curr)
+ {
+     Mat E, rvec, tvec;
+     Mat dR;
+     vector<uchar> inliers;
+
+     E = findEssentialMat(feats_prev, feats_curr, camera_matrix, RANSAC, 0.99, 1.0, inliers);
+     int ret = recoverPose(E, feats_prev, feats_curr, camera_matrix, rvec, tvec, inliers);
+
+     cout << "rvec: " << rvec << endl;
+     cout << "tvec: " << tvec << endl;
+
+     int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
+     double inlier_rate = 1.0 * inlier_count / inliers.size();
+     cout << "inlier rate: " << inlier_rate << endl;
+
+     if (ret && inlier_rate > 0.2)
+     {
+         Matrix3d R;
+         Quaterniond dq;
+         Vector3d dt;
+         for (int i = 0; i < 3; i++)
+         {
+             for (int j = 0; j < 3; j++)
+             {
+                 R(i, j) = rvec.at<double>(i, j);
+             }
+         }
+         dt = -R.transpose() * dt;
+         dq = Quaterniond(R.transpose());
+
+         int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
+
+         vector<Point2f> inlier_points_prev(inlier_count);
+         vector<Point2f> inlier_points_curr(inlier_count);
+         int j = 0;
+         for (auto i = 0; i < inliers.size(); i++)
+         {
+             if (inliers[i])
+             {
+                 inlier_points_curr[j] = feats_curr[i];
+                 inlier_points_prev[j] = feats_prev[i];
+                 j++;
+             }
+         }
+        cv::Mat point4ds;
+        cv::Mat Rt0 = Mat::eye(3, 4, CV_64FC1);
+        cv::Mat Rt1 = Mat::eye(3, 4, CV_64FC1);
+        rvec.copyTo(Rt1.rowRange(0, 3).colRange(0, 3));
+        tvec.copyTo(Rt1.rowRange(0, 3).col(3));
+
+        // Camera 1 Projection Matrix K[I|0]
+        cv::Mat P1 = camera_matrix * Rt0;
+        cv::Mat P2 = camera_matrix * Rt1;
+        cv::triangulatePoints(P1, P2, inlier_points_prev, inlier_points_curr, point4ds);
+        cout << "point4ds: " << point4ds << endl;
+
+
+        feats = inlier_points_curr;
+        feat3ds.resize(point4ds.cols);
+        for (int i = 0; i < point4ds.cols; i++)
+        {
+            Point3f p;
+            p.x = point4ds.at<double>(0, i);
+            p.y = point4ds.at<double>(1, i);
+            p.z = point4ds.at<double>(2, i);
+        }
+
+     }
+
+
+ }
+
 
 void mono_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar>& status)
 {
@@ -377,7 +539,28 @@ void mono_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2
 
 double mono_vo::mono_parallex(vector<Point2f> &points, vector<Point2f> &points_curr, vector<uchar> &status)
 {
+    if (points.size() < 10)
+    {
+        return 0.0;
+    }
     int count = std::count(status.begin(), status.end(), 1);
+    double parallex_sum = 0;
+    for (int i = 0; i < points.size(); i++)
+    {
+        if (status[i])
+            parallex_sum += distance(points[i], points_curr[i]);
+    }
+    double parallex = parallex_sum / count;
+    return parallex;
+}
+
+double mono_vo::mono_parallex(vector<Point2f> &points, vector<Point2f> &points_curr)
+{
+    if (points.size() < 10)
+    {
+        return 0.0;
+    }
+    int count = points.size();
     double parallex_sum = 0;
     for (int i = 0; i < points.size(); i++)
     {
