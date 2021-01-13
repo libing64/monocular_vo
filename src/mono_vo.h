@@ -44,7 +44,7 @@ private:
     int max_epipolar = 5;
     bool feat_vis_enable = true;
     float vel = 0.8;//0.8 * 30fps = 24m/s
-    double min_parallx = 10.0;
+    double min_parallx = 20.0;
     //camera matrix
     Matrix3d K;
     double baseline;
@@ -482,18 +482,21 @@ void mono_vo::update(Mat &img)
 
          int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
 
-         vector<Point2f> inlier_points_prev(inlier_count);
-         vector<Point2f> inlier_points_curr(inlier_count);
-         int j = 0;
-         for (auto i = 0; i < inliers.size(); i++)
-         {
-             if (inliers[i])
-             {
-                 inlier_points_curr[j] = feats_curr[i];
-                 inlier_points_prev[j] = feats_prev[i];
-                 j++;
-             }
-         }
+        vector<Point2f> inlier_points_prev(inlier_count);
+        vector<Point2f> inlier_points_curr(inlier_count);
+        int j = 0;
+        for (auto i = 0; i < inliers.size(); i++)
+        {
+            if (inliers[i])
+            {
+                inlier_points_curr[j] = feats_curr[i];
+                inlier_points_prev[j] = feats_prev[i];
+                j++;
+            }
+        }
+        inlier_points_curr.resize(j);
+        inlier_points_prev.resize(j);
+
         cv::Mat point4ds;
         cv::Mat Rt0 = Mat::eye(3, 4, CV_64FC1);
         cv::Mat Rt1 = Mat::eye(3, 4, CV_64FC1);
@@ -506,17 +509,20 @@ void mono_vo::update(Mat &img)
         cv::triangulatePoints(P1, P2, inlier_points_prev, inlier_points_curr, point4ds);
         cout << "point4ds: " << point4ds << endl;
 
+        cout << "point4ds size: " << point4ds.rows << "  " << point4ds.cols << endl;
 
         feats = inlier_points_curr;
         feat3ds.clear();
         for (int i = 0; i < point4ds.cols; i++)
         {
             Point3f p;
-            p.x = point4ds.at<double>(0, i);
-            p.y = point4ds.at<double>(1, i);
-            p.z = point4ds.at<double>(2, i);
+            p.x = point4ds.at<double>(0, i) / point4ds.at<double>(3, i);
+            p.y = point4ds.at<double>(1, i) / point4ds.at<double>(3, i);
+            p.z = point4ds.at<double>(2, i) / point4ds.at<double>(3, i);
             feat3ds.push_back(p);
         }
+
+        cout << "feat3ds: " << feat3ds << endl;
         //visualize cloud
         pcl::PointCloud<PointType> cloud;
         for (int i = 0; i < feat3ds.size(); i++)
@@ -525,8 +531,10 @@ void mono_vo::update(Mat &img)
             p.x = feat3ds[i].x;
             p.y = feat3ds[i].y;
             p.z = feat3ds[i].z;
+            p.intensity = i;
             cloud.points.push_back(p);
         }
+        cout << "feat3ds size: " << feat3ds.size() << endl;
         visualize_cloud(cloud.makeShared(), "feat3ds");
      }
 
