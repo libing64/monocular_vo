@@ -396,7 +396,7 @@ void mono_vo::update(Mat &img)
     int tracking_count = mono_track(keyframe, img, feats_prev, feats_curr, feats_index);
     printf("tracking feat cnt: %d\n", tracking_count);
     //whether keyframe
-    bool parallax = mono_parallex(feats_prev, feats_curr);
+    double parallax = mono_parallex(feats_prev, feats_curr);
     printf("parallax: %lf\n", parallax);
 
     if (parallax > min_parallx)
