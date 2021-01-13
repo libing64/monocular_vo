@@ -7,6 +7,16 @@
 #include <opencv2/opencv.hpp>
 #include <sensor_msgs/CameraInfo.h>
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/common/io.h>
+
+typedef pcl::PointXYZI PointType;
+
 using namespace std;
 using namespace Eigen;
 using namespace cv;
@@ -54,6 +64,8 @@ public:
     vector<Point2f> feats;
     vector<Point3f> feat3ds;
 
+    bool vis_enable = true;
+
     mono_vo();
     ~mono_vo();
 
@@ -78,7 +90,7 @@ public:
     bool is_keyframe();
     void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D);
     void map_init(vector<Point2f>& feats_prev, vector<Point2f>& feats_curr, vector<Point3f>& feat3ds, Quaterniond& q_prev, Vector3d& t_prev, Quaterniond& q_curr, Vector3d& t_curr);
-
+    void visualize_cloud(pcl::PointCloud<PointType>::Ptr ptr, std::string str);
 };
 
 mono_vo::mono_vo()
@@ -496,20 +508,42 @@ void mono_vo::update(Mat &img)
 
 
         feats = inlier_points_curr;
-        feat3ds.resize(point4ds.cols);
+        feat3ds.clear();
         for (int i = 0; i < point4ds.cols; i++)
         {
             Point3f p;
             p.x = point4ds.at<double>(0, i);
             p.y = point4ds.at<double>(1, i);
             p.z = point4ds.at<double>(2, i);
+            feat3ds.push_back(p);
         }
-
+        //visualize cloud
+        pcl::PointCloud<PointType> cloud;
+        for (int i = 0; i < feat3ds.size(); i++)
+        {
+            PointType p;
+            p.x = feat3ds[i].x;
+            p.y = feat3ds[i].y;
+            p.z = feat3ds[i].z;
+            cloud.points.push_back(p);
+        }
+        visualize_cloud(cloud.makeShared(), "feat3ds");
      }
 
 
  }
 
+ void mono_vo::visualize_cloud(pcl::PointCloud<PointType>::Ptr ptr, std::string str)
+ {
+     if (vis_enable)
+     {
+         pcl::visualization::CloudViewer viewer(str);
+         viewer.showCloud(ptr);
+         while (!viewer.wasStopped())
+         {
+         }
+     }
+ }
 
 void mono_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev, vector<uchar>& status)
 {

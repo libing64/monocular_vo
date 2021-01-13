@@ -25,6 +25,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+find_package(PCL)
 find_package(Eigen3)
 find_package(Ceres)
 find_package(OpenCV REQUIRED)
@@ -132,6 +133,7 @@ include_directories(
   src
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
+  ${PCL_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
 
@@ -170,7 +172,7 @@ target_link_libraries(kitti_loader ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${Open
 
 
 add_executable(mono_vo  src/mono_vo_node.cpp)
-target_link_libraries(mono_vo ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(mono_vo ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 #############
 ## Install ##
