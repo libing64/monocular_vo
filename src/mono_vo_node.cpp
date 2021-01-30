@@ -24,7 +24,7 @@ using namespace cv;
 ros::Subscriber camera_info_sub;
 mono_vo mono;
 
-ros::Publisher pub_odom, pub_pose, pub_path;
+ros::Publisher pub_odom, pub_pose, pub_path, pub_cloud;
 
 Quaterniond q_cam2imu;
 
@@ -139,9 +139,10 @@ void publish_cloud(mono_vo &mono)
 
         std_msgs::Header header;
         header.stamp = ros::Time(mono.timestamp);
-        header.frame_id = "camera";
-
+        header.frame_id = "odom";
         cloud_msg.header = header;
+
+        pub_cloud.publish(cloud_msg);
     }
 }
 
@@ -162,7 +163,7 @@ int main(int argc, char** argv)
     pub_odom = n.advertise<nav_msgs::Odometry>("/odom", 10);
     pub_pose = n.advertise<geometry_msgs::PoseStamped>("/mono_pose", 10);
     pub_path = n.advertise<nav_msgs::Path>("/mono_path", 10);
-
+    pub_cloud = n.advertise<sensor_msgs::PointCloud2>("/cloud", 10);
 
     Matrix3d R_cam2imu;
     R_cam2imu << 0, 0, 1, -1, 0, 0, 0, -1, 0;

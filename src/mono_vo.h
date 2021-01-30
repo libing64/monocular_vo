@@ -355,6 +355,7 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img, vector<Point2f>& feats_prev, ve
     cout << "feats_prev size: " << feats_prev.size() << endl;
     cout << "feats_curr size: " << feats_curr.size() << endl;
 
+    
     return feats_curr.size();
 }
 
@@ -381,6 +382,9 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img, vector<Point2f> &feats_prev, ve
     //remove outliers wit F matrix
     status.clear();
     Mat F = findFundamentalMat(points_prev, points_curr, FM_RANSAC, 1.0, 0.99, status);
+
+    visualize_features(img, points_prev, points_curr, status);
+
     j = 0;
     for (int i = 0; i < status.size(); i++)
     {
