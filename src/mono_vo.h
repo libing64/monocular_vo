@@ -91,6 +91,7 @@ public:
     bool is_keyframe();
     void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D);
     void map_init(vector<Point2f>& feats_prev, vector<Point2f>& feats_curr, vector<Point3f>& feat3ds, Quaterniond& q_prev, Vector3d& t_prev, Quaterniond& q_curr, Vector3d& t_curr);
+    void map_reset();
     void visualize_cloud(pcl::PointCloud<PointType>::Ptr ptr, std::string str);
 };
 
@@ -439,6 +440,13 @@ void mono_vo::update(Mat &img)
         vector<Point2f> feats_curr;
 
         int tracking_count = mono_track(keyframe, img, feats_prev, feats_curr, feat3ds_prev);
+
+        if (tracking_count < min_feat_cnt)
+        {
+            map_reset();
+            return;
+        }
+
         printf("tracking feat cnt: %d\n", tracking_count);
         //whether keyframe
         double parallax = mono_parallex(feats_prev, feats_curr);
@@ -518,12 +526,12 @@ void mono_vo::update(Mat &img)
      E = findEssentialMat(feats_prev, feats_curr, camera_matrix, RANSAC, 0.99, 1.0, inliers);
      int ret = recoverPose(E, feats_prev, feats_curr, camera_matrix, rvec, tvec, inliers);
 
-     cout << "rvec: " << rvec << endl;
-     cout << "tvec: " << tvec << endl;
+     //cout << "rvec: " << rvec << endl;
+     //cout << "tvec: " << tvec << endl;
 
      int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
      double inlier_rate = 1.0 * inlier_count / inliers.size();
-     cout << "inlier rate: " << inlier_rate << endl;
+     //cout << "inlier rate: " << inlier_rate << endl;
 
      if (ret && inlier_rate > 0.2)
      {
@@ -541,21 +549,6 @@ void mono_vo::update(Mat &img)
          dq = Quaterniond(R.transpose());
 
          int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
-
-        // vector<Point2f> inlier_points_prev(inlier_count);
-        // vector<Point2f> inlier_points_curr(inlier_count);
-        // int j = 0;
-        // for (auto i = 0; i < inliers.size(); i++)
-        // {
-        //     if (inliers[i])
-        //     {
-        //         inlier_points_curr[j] = feats_curr[i];
-        //         inlier_points_prev[j] = feats_prev[i];
-        //         j++;
-        //     }
-        // }
-        // inlier_points_curr.resize(j);
-        // inlier_points_prev.resize(j);
 
         feats.clear();
         Mat inlier_points_prev(2, inlier_count, CV_64FC1);
@@ -586,9 +579,9 @@ void mono_vo::update(Mat &img)
         cv::Mat P1 = camera_matrix * Rt0;
         cv::Mat P2 = camera_matrix * Rt1;
         cv::triangulatePoints(P1, P2, inlier_points_prev, inlier_points_curr, point4ds);
-        cout << "point4ds: " << point4ds << endl;
+        //cout << "point4ds: " << point4ds << endl;
 
-        cout << "point4ds size: " << point4ds.rows << "  " << point4ds.cols << endl;
+        //cout << "point4ds size: " << point4ds.rows << "  " << point4ds.cols << endl;
 
         feat3ds.clear();
         for (int i = 0; i < point4ds.cols; i++)
@@ -600,7 +593,7 @@ void mono_vo::update(Mat &img)
             feat3ds.push_back(p);
         }
 
-        cout << "feat3ds: " << feat3ds << endl;
+        //cout << "feat3ds: " << feat3ds << endl;
         //visualize cloud
         pcl::PointCloud<PointType> cloud;
         for (int i = 0; i < feat3ds.size(); i++)
@@ -617,6 +610,12 @@ void mono_vo::update(Mat &img)
      }
 
 
+ }
+
+ void mono_vo::map_reset()
+ {
+     feat3ds.clear();
+     feats.clear();
  }
 
  void mono_vo::visualize_cloud(pcl::PointCloud<PointType>::Ptr ptr, std::string str)
