@@ -87,8 +87,8 @@ void triangulate(MatrixXd& x1, MatrixXd& x2, MatrixXd& _P1, MatrixXd& _P2, Matri
 
 int main()
 {
-    Matrix3d R = Quaterniond::UnitRandom().toRotationMatrix();
-    Vector3d t = Vector3d::Random();
+    Matrix3d R = Quaterniond::Identity().toRotationMatrix();
+    Vector3d t = Vector3d::Random() * 0.1;
 
     cout << "R: " << R << endl;
     cout << "t: " << t.transpose() << endl;
@@ -100,19 +100,30 @@ int main()
         X.col(i) /= X(2, i);
     }
     cout << "X: " << X << endl;
-    MatrixXd X2 = R * X + t;
+    MatrixXd X2 = R * X;
+    for (int i = 0; i < X2.cols(); i++)
+    {
+        X2.col(i) += t;
+    }
 
 
     Matrix3d K;
     K << 500, 0, 320, 0, 500, 240, 0, 0, 1;
 
+    cout << "K: " << K << endl;
     MatrixXd Rt1 = MatrixXd::Identity(3, 4);
     MatrixXd Rt2 = MatrixXd::Identity(3, 4);
     Rt2.topLeftCorner(3, 3) = R;
     Rt2.rightCols(1) = t;
 
+    cout << "Rt1: " << Rt1 << endl;
+    cout << "Rt2: " << Rt2 << endl;
+
     MatrixXd P1 = K * Rt1;
     MatrixXd P2 = K * Rt2;
+
+    cout << "P1: " << P1 << endl;
+    cout << "P2: " << P2 << endl;
 
     MatrixXd x1 = K * X;
     MatrixXd x2 = K * X2;
