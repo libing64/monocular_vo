@@ -174,6 +174,9 @@ target_link_libraries(kitti_loader ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${Open
 add_executable(mono_vo  src/mono_vo_node.cpp)
 target_link_libraries(mono_vo ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
+add_executable(triangulate_example  utest/triangulate_example.cpp)
+target_link_libraries(triangulate_example ${catkin_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
 #############
 ## Install ##
 #############
