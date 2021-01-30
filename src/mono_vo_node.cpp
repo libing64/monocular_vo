@@ -31,6 +31,7 @@ Quaterniond q_cam2imu;
 void publish_odom(mono_vo &mono);
 void publish_pose(mono_vo &mono);
 void publish_path(mono_vo &mono);
+void publish_cloud(mono_vo &mono);
 
 void camera_info_callback(const sensor_msgs::CameraInfoConstPtr &msg)
 {
@@ -54,6 +55,7 @@ void image_callback(const sensor_msgs::ImageConstPtr &left_image_msg,
         //mono.mono_detect(left_img, right_img);
         publish_odom(mono);
         publish_pose(mono);
+        publish_cloud(mono);
     }
 
 }
@@ -120,9 +122,27 @@ void publish_pose(mono_vo &mono)
 
 void publish_cloud(mono_vo &mono)
 {
-    std_msgs::Header header;
-    header.stamp = ros::Time(mono.timestamp);
-    header.frame_id = "base_link";
+    if (mono.feat3ds.size())
+    {
+        pcl::PointCloud<pcl::PointXYZI> cloud;
+        for (int i = 0; i < mono.feat3ds.size(); i++)
+        {
+            PointType p;
+            p.x = mono.feat3ds[i].x;
+            p.y = mono.feat3ds[i].y;
+            p.z = mono.feat3ds[i].z;
+            cloud.points.push_back(p);
+        }
+
+        sensor_msgs::PointCloud2 cloud_msg;
+        pcl::toROSMsg(cloud, cloud_msg);
+
+        std_msgs::Header header;
+        header.stamp = ros::Time(mono.timestamp);
+        header.frame_id = "camera";
+
+        cloud_msg.header = header;
+    }
 }
 
 int main(int argc, char** argv)
