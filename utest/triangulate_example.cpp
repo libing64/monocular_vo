@@ -29,7 +29,7 @@ void visualize_cloud(pcl::PointCloud<PointType>::Ptr ptr, std::string str)
 
 }
 
-void triangulate(MatrixXd& x1, MatrixXd& x2, MatrixXd& _P1, MatrixXd& _P2, MatrixXd pts3d)
+void triangulate(MatrixXd& _x1, MatrixXd& _x2, MatrixXd& _P1, MatrixXd& _P2, MatrixXd pts3d)
 {
     cv::Mat point4ds;
     // Camera 1 Projection Matrix K[I|0]
@@ -43,17 +43,26 @@ void triangulate(MatrixXd& x1, MatrixXd& x2, MatrixXd& _P1, MatrixXd& _P2, Matri
             P2.at<double>(i, j) = _P2(i, j);
         }
     }
-    vector<Point2f> points_prev(x1.cols());
-    vector<Point2f> points_curr(x2.cols());
-    for (int i = 0; i < x1.cols(); i++)
-    {
-        Point2f p1 = Point2f(x1(0, i), x1(1, i));
-        Point2f p2 = Point2f(x2(0, i), x2(1, i));
-        points_prev[i] = p1;
-        points_curr[i] = p2;
-    }
+    // vector<Point2f> points_prev(_x1.cols());
+    // vector<Point2f> points_curr(_x2.cols());
+    // for (int i = 0; i < x1.cols(); i++)
+    // {
+    //     Point2f p1 = Point2f(_x1(0, i), x1(1, i));
+    //     Point2f p2 = Point2f(_x2(0, i), x2(1, i));
+    //     points_prev[i] = p1;
+    //     points_curr[i] = p2;
+    // }
 
-    cv::triangulatePoints(P1, P2, points_prev, points_curr, point4ds);
+    Mat x1(2, _x1.cols(), CV_64FC1);
+    Mat x2(2, _x2.cols(), CV_64FC1);
+    for (int i = 0; i < _x1.cols(); i++)
+    {
+        x1.at<double>(0, i) = _x1(0, i);
+        x1.at<double>(1, i) = _x1(1, i);
+        x2.at<double>(0, i) = _x2(0, i);
+        x2.at<double>(1, i) = _x2(1, i);
+    }
+    cv::triangulatePoints(P1, P2, x1, x2, point4ds);
     cout << "point4ds: " << point4ds << endl;
 
     cout << "point4ds size: " << point4ds.rows << "  " << point4ds.cols << endl;
@@ -85,6 +94,100 @@ void triangulate(MatrixXd& x1, MatrixXd& x2, MatrixXd& _P1, MatrixXd& _P2, Matri
     visualize_cloud(cloud.makeShared(), "feat3ds");
 }
 
+int main0()
+{
+
+    Matx33d K1(6137.147949, 0.000000, 644.974609,
+               0.000000, 6137.147949, 573.442749,
+               0.000000, 0.000000, 1.000000);
+    Matx33d K2(6137.147949, 0.000000, 644.674438,
+               0.000000, 6137.147949, 573.079834,
+               0.000000, 0.000000, 1.000000);
+
+    Matx34d RT1(1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0);
+
+    Matx34d RT2(0.998297, 0.0064108, -0.0579766, 143.614334,
+                -0.0065818, 0.999975, -0.00275888, -5.160085,
+                0.0579574, 0.00313577, 0.998314, 96.066109);
+
+
+
+
+    Matx34d P1 = K1 * RT1;
+    Matx34d P2 = K2 * RT2;
+
+    float x1data[] = {438.f, 19.f};
+    float x2data[] = {452.363600f, 16.452225f};
+    float Xdata[] = {-81.049530f, -215.702804f, 2401.645449f};
+    Mat x1(2, 1, CV_32F, x1data);
+    Mat x2(2, 1, CV_32F, x2data);
+    Mat res0(1, 3, CV_32F, Xdata);
+    Mat res_, res;
+
+
+    Mat X(4, 1, CV_64F);
+    X.at<double>(0, 0) = Xdata[0];
+    X.at<double>(1, 0) = Xdata[1];
+    X.at<double>(2, 0) = Xdata[2];
+    X.at<double>(3, 0) = 1;
+
+
+    cout << "X: " << X << endl;
+    cout << "P1: " << P1 << endl;
+    cout << "P2: " << P2 << endl;
+
+    Mat xx1 = P1 * X;
+    Mat xx2 = P2 * X;
+
+    cout << "xx1 : " << xx1 << endl;
+    cout << "xx2: " << xx2 << endl;
+    for (int i = 0; i < 3; i++)
+    {
+        xx1.at<double>(i, 0) /= xx1.at<double>(2, 0);
+        xx2.at<double>(i, 0) /= xx2.at<double>(2, 0);
+    }
+    cout << "xx1 : " << xx1 << endl;
+    cout << "xx2: " << xx2 << endl;
+
+    triangulatePoints(P1, P2, x1, x2, res_);
+    cv::transpose(res_, res_); // TODO cvtest (transpose doesn't support inplace)
+    convertPointsFromHomogeneous(res_, res);
+    res = res.reshape(1, 1);
+
+    cout << "[2]:" << endl;
+    cout << "\tres0: " << res0 << endl;
+    cout << "\tres: " << res << endl;
+}
+
+int main1()
+{
+    double P1data[] = {250, 0, 200, 0, 0, 250, 150, 0, 0, 0, 1, 0};
+    double P2data[] = {250, 0, 200, -250, 0, 250, 150, 0, 0, 0, 1, 0};
+    Mat P1(3, 4, CV_64F, P1data), P2(3, 4, CV_64F, P2data);
+
+    float x1data[] = {200.f, 0.f};
+    float x2data[] = {170.f, 1.f};
+    float Xdata[] = {0.f, -5.f, 25 / 3.f};
+    Mat x1(2, 1, CV_32F, x1data);
+    Mat x2(2, 1, CV_32F, x2data);
+    Mat res0(1, 3, CV_32F, Xdata);
+    Mat res_, res;
+
+    triangulatePoints(P1, P2, x1, x2, res_);
+    cv::transpose(res_, res_); // TODO cvtest (transpose doesn't support inplace)
+    convertPointsFromHomogeneous(res_, res);
+
+    res = res.reshape(1, 1);
+
+    cout << "[1]:" << endl;
+    cout << "\tres0: " << res0 << endl;
+    cout << "\tres: " << res << endl;
+
+    return 0;
+}
+
 int main()
 {
     Matrix3d R = Quaterniond::Identity().toRotationMatrix();
@@ -93,8 +196,8 @@ int main()
     cout << "R: " << R << endl;
     cout << "t: " << t.transpose() << endl;
 
-    const int N = 10;
-    MatrixXd X = MatrixXd::Random(3, N);
+    const int N = 1000;
+    MatrixXd X = MatrixXd::Random(3, N) * 10;
     for (int i = 0; i < N; i++)
     {
         X.col(i) /= X(2, i);
