@@ -47,3 +47,6 @@ Ubuntu 20.04 + ros noetic
 那个mono-vo它怎么处理的？为何姿态很准？只是补充了速度就可以了？
 
 ORB + tracker不是很好的选择，FAST + tracker才比较合理 
+
+# 5. trianglatePoints
+注意数据类型一定要一致

@@ -482,20 +482,39 @@ void mono_vo::update(Mat &img)
 
          int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
 
-        vector<Point2f> inlier_points_prev(inlier_count);
-        vector<Point2f> inlier_points_curr(inlier_count);
+        // vector<Point2f> inlier_points_prev(inlier_count);
+        // vector<Point2f> inlier_points_curr(inlier_count);
+        // int j = 0;
+        // for (auto i = 0; i < inliers.size(); i++)
+        // {
+        //     if (inliers[i])
+        //     {
+        //         inlier_points_curr[j] = feats_curr[i];
+        //         inlier_points_prev[j] = feats_prev[i];
+        //         j++;
+        //     }
+        // }
+        // inlier_points_curr.resize(j);
+        // inlier_points_prev.resize(j);
+
+        feats.clear();
+        Mat inlier_points_prev(2, inlier_count, CV_64FC1);
+        Mat inlier_points_curr(2, inlier_count, CV_64FC1);
         int j = 0;
-        for (auto i = 0; i < inliers.size(); i++)
+        for (int i = 0; i < inliers.size(); i++)
         {
             if (inliers[i])
             {
-                inlier_points_curr[j] = feats_curr[i];
-                inlier_points_prev[j] = feats_prev[i];
+                inlier_points_prev.at<double>(0, j) = feats_prev[i].x;
+                inlier_points_prev.at<double>(1, j) = feats_prev[i].y;
+
+                inlier_points_curr.at<double>(0, j) = feats_curr[i].x;
+                inlier_points_curr.at<double>(1, j) = feats_curr[i].y;
+                feats.push_back(feats_curr[i]);
                 j++;
             }
         }
-        inlier_points_curr.resize(j);
-        inlier_points_prev.resize(j);
+
 
         cv::Mat point4ds;
         cv::Mat Rt0 = Mat::eye(3, 4, CV_64FC1);
@@ -511,7 +530,6 @@ void mono_vo::update(Mat &img)
 
         cout << "point4ds size: " << point4ds.rows << "  " << point4ds.cols << endl;
 
-        feats = inlier_points_curr;
         feat3ds.clear();
         for (int i = 0; i < point4ds.cols; i++)
         {
