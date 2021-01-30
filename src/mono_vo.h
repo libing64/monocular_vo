@@ -134,14 +134,6 @@ void mono_vo::mono_detect(Mat &img)
 {
 
     vector<KeyPoint> keypoints;
-
-
-    //1. orb features
-    //Ptr<FeatureDetector> detector = cv::ORB::create(max_feat_cnt);
-    //detector->detect(img, keypoints);
-    //KeyPoint::convert(keypoints, feats);
-
-    //2. FAST feature
     int thresh = 10;
     Mat mask = cv::Mat(img.size(), CV_8UC1, cv::Scalar(255));
     Ptr<FastFeatureDetector> detector = FastFeatureDetector::create(thresh);
@@ -411,8 +403,6 @@ void mono_vo::update(Mat &img)
     //feature_extract(img);
     if (feats.empty())
     {
-        q = Quaterniond::Identity();
-        t = Vector3d::Zero();
         mono_detect(img);
         return;
     } else if (feat3ds.empty())
@@ -502,24 +492,6 @@ void mono_vo::update(Mat &img)
         }
 
     }
-    
-
-    // if (feat3ds.empty())
-    // {
-
-    // } 
-    // else 
-    // {
-    //     int inlier_count = mono_track(keyframe, img);
-    //     if (inlier_count < min_feat_cnt)
-    //     {
-    //         mono_detect(img);
-    //     } else 
-    //     {
-    //         //detect new features
-
-    //     }
-    // }
 }
 
  void mono_vo::map_init(vector<Point2f>& feats_prev, vector<Point2f>& feats_curr, vector<Point3f>& feat3ds, 
