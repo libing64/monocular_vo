@@ -50,3 +50,35 @@ ORB + tracker不是很好的选择，FAST + tracker才比较合理
 
 # 5. trianglatePoints
 注意数据类型一定要一致
+
+# triangulate之后，每次keyframe到来又需要addKeyframe和features
+这样又变成了一个序列的管理, 总不能把feature投影到上一个frame吧? 理论位置和理论feature?
+如果是投影过来的位置，是不是信息没有丢失？ feats -> feats_proj
+
+只要keyframe不更新，那么feats就不更新，根据R t进行投影过来的位置，以及track到的位置
+
+第一步只考虑keyframe，别的帧先不考虑 
+
+始终要维护三帧信息，当然更多帧就更好了，是不是就变成sliding window了？ 然后考虑丢掉哪一帧？
+是丢弃最新的还是最老的？
+
+多帧之间的信息，orb-slam以及ptam怎么维护的啊？
+
+# 假设有sliding window内部的各种信息， features 旋转已知
+怎么很好的求出t内？
+一种就是两帧-> 3d pose, 然后3d-2d更新pose, 但是中间还是要不断的insert keyframe，其实不如直接进行 最小二乘法，然后最后二乘法，还是需要维护历史尺度，就需要marginalization，维护prior info
+
+# 要不再仔细研究下orb slam的代码？
+
+# insert new keyframe and new features to map
+1. feature detect
+2. feature matching
+3. two view map init
+4. insert new frame; 3d-2d correspondence; 
+   add new feature to the map
+   detect new and tracing, + Rt => new map points
+
+
+
+
+
