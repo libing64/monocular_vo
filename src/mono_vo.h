@@ -74,6 +74,7 @@ public:
 
     void mono_detect(Mat &img);
     void mono_visualize(Mat &img, vector<Point2f> &left_feats);
+    void visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev);
     void mono_visualize(Mat &img, Mat &right_img, vector<Point2f>&left_feats, vector<Point2f>&right_feats);
 
     void remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr);
@@ -518,7 +519,7 @@ int mono_vo::mono_register(Mat &keyframe, Mat &img, vector<Point2f> &feats_prev,
         feats_curr.push_back(p2);
         feat3ds_prev.push_back(feat3ds[i]);
     }
-
+    visualize_features(img, feats_prev, feats_curr);
     //6. update keyframe
 
     return feats_curr.size();
@@ -813,7 +814,26 @@ void mono_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2
     }
 }
 
-
+void mono_vo::visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev)
+{
+    static Mat img_color;
+    if (feat_vis_enable)
+    {
+        cv::cvtColor(img, img_color, cv::COLOR_GRAY2RGB);
+        Scalar color = Scalar(0, 0, 255);
+        Scalar color_prev = Scalar(255, 0, 0);
+        Scalar color_next = Scalar(0, 255, 0);
+        for (auto i = 0; i < feats.size(); i++)
+        {
+            line(img_color, feats[i], feats_prev[i], color, 1, 8);
+            circle(img_color, feats[i], 1, color);
+            circle(img_color, feats_prev[i], 2, color_prev);
+            circle(img_color, feats[i], 2, color_next);
+        }
+        imshow("feats", img_color);
+        waitKey(2);
+    }
+}
 
 double mono_vo::mono_parallex(vector<Point2f> &points, vector<Point2f> &points_curr, vector<uchar> &status)
 {
