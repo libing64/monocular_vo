@@ -598,20 +598,19 @@ void mono_vo::update(Mat &img)
 
             Matrix3d R;
             Quaterniond dq;
-            Vector3d dt;
+            Vector3d tt;
             for (int i = 0; i < 3; i++)
             {
                 for (int j = 0; j < 3; j++)
                 {
                     R(i, j) = dR.at<double>(i, j);
                 }
-                dt(i) = tvec.at<double>(i);
+                tt(i) = tvec.at<double>(i);
             }
 
-            dt = -R.transpose() * dt;
-            dq = Quaterniond(R.transpose());
-            t = tk + qk.toRotationMatrix() * dt;
-            q = qk * dq;
+            t = -R.transpose() * tt;
+            q = Quaterniond(R.transpose());
+
             cout << "mono track: " << q.coeffs().transpose() << "  t: " << t.transpose() << endl;
         }
         int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
