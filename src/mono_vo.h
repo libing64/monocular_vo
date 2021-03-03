@@ -64,7 +64,7 @@ public:
     vector<Point2f> feats;
     vector<Point3f> feat3ds;
 
-    bool vis_enable = false;
+    bool vis_enable = true;
 
     mono_vo();
     ~mono_vo();
@@ -80,6 +80,8 @@ public:
     void remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f>& feat3ds);
 
     void remove_invalid(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<uchar>& status);
+    void remove_invalid(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f>& feat3ds, vector<uchar> &status);
+
     int mono_track(Mat &keyframe, Mat &img);
 
     void update(Mat& img);
@@ -299,40 +301,51 @@ void mono_vo::remove_invalid(vector<Point2f> &feats_prev, vector<Point2f> &feats
     feats_prev.resize(j);
     feats_curr.resize(j);
 }
+
+void mono_vo::remove_invalid(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f>& feat3ds, vector<uchar> &status)
+{
+    int j = 0;
+    for (int i = 0; i < status.size(); i++)
+    {
+        if (status[i])
+        {
+            if (i != j)
+            {
+                feats_prev[j] = feats_prev[i];
+                feats_curr[j] = feats_curr[i];
+                feat3ds[j] = feat3ds[i];
+            }
+            j++;
+        }
+    }
+    feats_prev.resize(j);
+    feats_curr.resize(j);
+    feat3ds.resize(j);
+}
+
 int mono_vo::mono_track(Mat &keyframe, Mat &img)
 {
     vector<uchar> status;
     vector<float> err;
+    vector<Point2f> feats_prev = feats;
     vector<Point2f> feats_curr;
-    cv::calcOpticalFlowPyrLK(keyframe, img, feats, feats_curr, status, err);
+    cv::calcOpticalFlowPyrLK(keyframe, img, feats_prev, feats_curr, status, err);
     int count = std::count(status.begin(), status.end(), 1);
 
-    vector<Point2f> points_prev(count);
 
-    vector<Point2f> points_curr(count);
-    int j = 0;
-    for (auto i = 0; i < status.size(); i++)
-    {
-        if (status[i])
-        {
-            points_curr[j] = feats_curr[i];
-            points_prev[j] = feats[i];
-            j++;
-        }
-    }
+    remove_invalid(feats_prev, feats_curr, status);
 
-    remove_outliers(points_prev, points_curr);
+    remove_outliers(feats_prev, feats_curr);
     Mat E, rvec, tvec;
     Mat dR;
     vector<uchar> inliers;
 
-    E = findEssentialMat(points_prev, points_curr, camera_matrix, RANSAC, 0.99, 1.0, inliers); //threshold!!!
-    int ret = recoverPose(E, points_prev, points_curr, camera_matrix, rvec, tvec, inliers);
+    E = findEssentialMat(feats_prev, feats_curr, camera_matrix, RANSAC, 0.99, 1.0, inliers); //threshold!!!
+    int ret = recoverPose(E, feats_prev, feats_curr, camera_matrix, rvec, tvec, inliers);
 
     cout << "rvec: " << rvec << endl;
     cout << "tvec: " << tvec << endl;
-    visualize_features(img, points_prev, points_curr, inliers);
-
+    visualize_features(img, feats_prev, feats_curr, inliers);
 
     int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
     double inlier_rate = 1.0 * inlier_count / inliers.size();
@@ -368,50 +381,17 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img, vector<Point2f>& feats_prev, ve
     cv::calcOpticalFlowPyrLK(keyframe, img, feats_prev, feats_curr, status, err);
     int count = std::count(status.begin(), status.end(), 1);
 
-    vector<Point2f> points_prev(count);
-    vector<Point2f> points_curr(count);
-    vector<Point3f> point3ds_prev(count);//index to feats_prev
-    int j = 0;
-    for (auto i = 0; i < status.size(); i++)
-    {
-        if (status[i])
-        {
-            points_curr[j] = feats_curr[i];
-            points_prev[j] = feats_prev[i];
-            point3ds_prev[j] = feat3ds_prev[i];
-            j++;
-        }
-    }
+    remove_invalid(feats_prev, feats_curr, feat3ds_prev, status);
+
     //remove outliers wit F matrix
     status.clear();
-    Mat F = findFundamentalMat(points_prev, points_curr, FM_RANSAC, 1.0, 0.99, status);
-    j = 0;
-    for (int i = 0; i < status.size(); i++)
-    {
-        if (status[i])
-        {
-            if (i != j)
-            {
-                points_prev[j] = points_prev[i];
-                points_curr[j] = points_curr[i];
-                point3ds_prev[j] = point3ds_prev[i];
-            }
-            j++;
-        }
-    }
-    points_prev.resize(j);
-    points_curr.resize(j);
-    point3ds_prev.resize(j);
-
-    feats_prev = points_prev;
-    feats_curr = points_curr;
-    feat3ds_prev = point3ds_prev;
+    Mat F = findFundamentalMat(feats_prev, feats_curr, FM_RANSAC, 1.0, 0.99, status);
+    remove_invalid(feats_prev, feats_curr, feat3ds_prev, status);
 
     cout << "feats_prev size: " << feats_prev.size() << endl;
     cout << "feats_curr size: " << feats_curr.size() << endl;
     cout << "feat3ds_prev size: " << feat3ds_prev.size() << endl;
 
-    
     return feats_curr.size();
 }
 
@@ -425,30 +405,13 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img, vector<Point2f> &feats_prev, ve
     cv::calcOpticalFlowPyrLK(keyframe, img, feats_prev, feats_curr, status, err);
     int count = std::count(status.begin(), status.end(), 1);
 
-    vector<Point2f> points_prev(count);
-    vector<Point2f> points_curr(count);
-
-    int j = 0;
-    for (auto i = 0; i < status.size(); i++)
-    {
-        if (status[i])
-        {
-            points_curr[j] = feats_curr[i];
-            points_prev[j] = feats_prev[i];
-            j++;
-        }
-    }
+    remove_invalid(feats_prev, feats_curr, status);
     //remove outliers wit F matrix
     status.clear();
-    Mat F = findFundamentalMat(points_prev, points_curr, FM_RANSAC, 1.0, 0.99, status);
+    Mat F = findFundamentalMat(feats_prev, feats_curr, FM_RANSAC, 1.0, 0.99, status);
 
-    visualize_features(img, points_prev, points_curr, status);
-
-    remove_invalid(points_prev, points_curr, status);
-
-
-    feats_prev = points_prev;
-    feats_curr = points_curr;
+    visualize_features(img, feats_prev, feats_curr, status);
+    remove_invalid(feats_prev, feats_curr, status);
 
     cout << "feats_prev size: " << feats_prev.size() << endl;
     cout << "feats_curr size: " << feats_curr.size() << endl;
@@ -705,7 +668,6 @@ void mono_vo::update(Mat &img)
 
         int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
 
-        feats.clear();
         Mat inlier_points_prev(2, inlier_count, CV_64FC1);
         Mat inlier_points_curr(2, inlier_count, CV_64FC1);
         int j = 0;
@@ -718,7 +680,6 @@ void mono_vo::update(Mat &img)
 
                 inlier_points_curr.at<double>(0, j) = feats_curr[i].x;
                 inlier_points_curr.at<double>(1, j) = feats_curr[i].y;
-                feats.push_back(feats_curr[i]);
                 j++;
             }
         }
