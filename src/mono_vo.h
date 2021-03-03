@@ -447,7 +447,6 @@ int mono_vo::mono_register(Mat &keyframe, Mat &img, vector<Point2f> &feats_prev,
             circle(mask, keypoints[i].pt, min_feat_dist, cv::Scalar(0), cv::FILLED);
         }
     }
-    KeyPoint::convert(keypoints, points_prev);
 
     vector<uchar> status;
     vector<float> err;
@@ -461,16 +460,15 @@ int mono_vo::mono_register(Mat &keyframe, Mat &img, vector<Point2f> &feats_prev,
 
     int inlier_count = points_prev.size();
 
-    feats.clear();
     Mat inlier_points_prev(2, inlier_count, CV_64FC1);
     Mat inlier_points_curr(2, inlier_count, CV_64FC1);
     int j = 0;
     for (int i = 0; i < inlier_count; i++)
     {
-        inlier_points_prev.at<double>(0, i) = feats_prev[i].x;
-        inlier_points_prev.at<double>(1, i) = feats_prev[i].y;
-        inlier_points_curr.at<double>(0, i) = feats_curr[i].x;
-        inlier_points_curr.at<double>(1, i) = feats_curr[i].y;
+        inlier_points_prev.at<double>(0, i) = points_prev[i].x;
+        inlier_points_prev.at<double>(1, i) = points_prev[i].y;
+        inlier_points_curr.at<double>(0, i) = points_curr[i].x;
+        inlier_points_curr.at<double>(1, i) = points_curr[i].y;
     }
 
     Mat point4ds;
@@ -612,6 +610,9 @@ void mono_vo::update(Mat &img)
             q = Quaterniond(R.transpose());
 
             cout << "mono track: " << q.coeffs().transpose() << "  t: " << t.transpose() << endl;
+        } else 
+        {
+            cout << "fail for solvePnP" << endl;
         }
         int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
 
