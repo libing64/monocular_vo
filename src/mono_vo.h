@@ -621,13 +621,12 @@ void mono_vo::update(Mat &img)
             printf("func: %s, %d\n", __FUNCTION__, __LINE__);
             cout << "update keyframe" << endl;
             //register new frame as keyframe, and insert new Points to map
-            vector<Point3f> feat3ds_curr = feat3ds;
-            mono_register(keyframe, img, feats_prev, feats_curr, feat3ds_curr, qk, tk, q, t);
+            mono_register(keyframe, img, feats_prev, feats_curr, feat3ds_prev, qk, tk, q, t);
 
             //update keyframe
             img.copyTo(keyframe);
             feats = feats_curr;
-            feat3ds = feat3ds_curr;
+            feat3ds = feat3ds_prev;
             qk = q;
             tk = t;
         } else 
