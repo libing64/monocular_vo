@@ -64,7 +64,7 @@ public:
     vector<Point2f> feats;
     vector<Point3f> feat3ds;
 
-    bool vis_enable = true;
+    bool vis_enable = false;
 
     mono_vo();
     ~mono_vo();
@@ -528,6 +528,7 @@ int mono_vo::mono_register(Mat &keyframe, Mat &img, vector<Point2f> &feats_prev,
 
 void mono_vo::update(Mat &img)
 {
+    printf("func: %s, %d\n", __FUNCTION__, __LINE__);
     //feature_extract(img);
     if (feats.empty())
     {
@@ -548,7 +549,11 @@ void mono_vo::update(Mat &img)
         {
             qk = q;
             tk = t;
-            map_init(feats_prev, feats_curr, feat3ds, qk, tk, q, t);
+            vector<Point3f> feat3ds_curr;
+            map_init(feats_prev, feats_curr, feat3ds_curr, qk, tk, q, t);
+            img.copyTo(keyframe);
+            feats = feats_curr;
+            feat3ds = feat3ds_curr;
         } else 
         {
             cout << "no enough parallex for map init" << endl;
@@ -588,6 +593,7 @@ void mono_vo::update(Mat &img)
         cout << "tvec: " << tvec << endl;
         if (ret)
         {
+            printf("func: %s, %d\n", __FUNCTION__, __LINE__);
             cv::Rodrigues(rvec, dR);
 
             Matrix3d R;
@@ -613,9 +619,18 @@ void mono_vo::update(Mat &img)
         //2. if parallax > min_parallex, insert new features to map
         if (parallax > min_parallx)
         {
-            cout << "todo add new keyframe to map" << endl;
+            printf("func: %s, %d\n", __FUNCTION__, __LINE__);
+            cout << "update keyframe" << endl;
             //register new frame as keyframe, and insert new Points to map
-            mono_register(keyframe, img, feats_prev, feats_curr, feat3ds, qk, tk, q, t);
+            vector<Point3f> feat3ds_curr = feat3ds;
+            mono_register(keyframe, img, feats_prev, feats_curr, feat3ds_curr, qk, tk, q, t);
+
+            //update keyframe
+            img.copyTo(keyframe);
+            feats = feats_curr;
+            feat3ds = feat3ds_curr;
+            qk = q;
+            tk = t;
         } else 
         {
 
