@@ -615,6 +615,8 @@ void mono_vo::update(Mat &img)
         } else 
         {
             cout << "fail for solvePnP" << endl;
+            map_reset();
+            return;
         }
         int inlier_count = std::count(inliers.begin(), inliers.end(), 1);
 
@@ -777,6 +779,8 @@ void mono_vo::update(Mat &img)
      cout << "reset_cnt: " << reset_cnt << endl;
      feat3ds.clear();
      feats.clear();
+     qk = q;
+     tk = t;
  }
 
  void mono_vo::visualize_cloud(pcl::PointCloud<PointType>::Ptr ptr, std::string str)
