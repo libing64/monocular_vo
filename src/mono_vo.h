@@ -519,6 +519,7 @@ int mono_vo::mono_register(Mat &keyframe, Mat &img, vector<Point2f> &feats_prev,
         feats_curr.push_back(p2);
         feat3ds_prev.push_back(feat3ds[i]);
     }
+    remove_outliers(feats_prev, feats_curr, feat3ds_prev);
     visualize_features(img, feats_prev, feats_curr);
     //6. update keyframe
 
