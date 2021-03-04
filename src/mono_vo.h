@@ -77,8 +77,11 @@ public:
     void visualize_features(Mat &img, vector<Point2f> &feats, vector<Point2f> &feats_prev);
     void mono_visualize(Mat &img, Mat &right_img, vector<Point2f>&left_feats, vector<Point2f>&right_feats);
 
-    void remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr);
-    void remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f>& feat3ds);
+    void remove_outliers_with_F(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr);
+    void remove_outliers_with_F(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f>& feat3ds);
+
+    void remove_outliers_with_E(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr);
+    void remove_outliers_with_E(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f> &feat3ds);
 
     void remove_invalid(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<uchar>& status);
     void remove_invalid(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f>& feat3ds, vector<uchar> &status);
@@ -252,7 +255,7 @@ void mono_vo::mono_visualize(Mat &img, Mat &right_img, vector<Point2f> &left_fea
     }
 }
 
-void mono_vo::remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr)
+void mono_vo::remove_outliers_with_F(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr)
 {
     vector<uchar> status;
     Mat F = findFundamentalMat(feats_prev, feats_curr, FM_RANSAC, 1.0, 0.99, status);
@@ -260,27 +263,27 @@ void mono_vo::remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feat
     cout << "inlier percent: " << (feats_prev.size() * 1.0) / status.size() << endl;
 }
 
-void mono_vo::remove_outliers(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f>& feat3ds)
+void mono_vo::remove_outliers_with_F(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f>& feat3ds)
 {
     vector<uchar> status;
     Mat F = findFundamentalMat(feats_prev, feats_curr, FM_RANSAC, 1.0, 0.99, status);
-    int j = 0;
-    for (int i = 0; i < status.size(); i++)
-    {
-        if (status[i])
-        {
-            if (i != j)
-            {
-                feats_prev[j] = feats_prev[i];
-                feats_curr[j] = feats_curr[i];
-                feat3ds[j] = feat3ds[i];
-            }
-            j++;
-        }
-    }
-    feats_prev.resize(j);
-    feats_curr.resize(j);
-    feat3ds.resize(j);
+    remove_invalid(feats_prev, feats_curr, feat3ds, status);
+    cout << "inlier percent: " << (feats_prev.size() * 1.0) / status.size() << endl;
+}
+
+void mono_vo::remove_outliers_with_E(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr)
+{
+    vector<uchar> status;
+    Mat E = findEssentialMat(feats_prev, feats_curr, camera_matrix, RANSAC, 0.99, 1.0, status);
+    remove_invalid(feats_prev, feats_curr, status);
+    cout << "inlier percent: " << (feats_prev.size() * 1.0) / status.size() << endl;
+}
+
+void mono_vo::remove_outliers_with_E(vector<Point2f> &feats_prev, vector<Point2f> &feats_curr, vector<Point3f> &feat3ds)
+{
+    vector<uchar> status;
+    Mat E = findEssentialMat(feats_prev, feats_curr, camera_matrix, RANSAC, 0.99, 1.0, status);
+    remove_invalid(feats_prev, feats_curr, feat3ds, status);
     cout << "inlier percent: " << (feats_prev.size() * 1.0) / status.size() << endl;
 }
 
@@ -336,7 +339,7 @@ int mono_vo::mono_track(Mat &keyframe, Mat &img)
 
     remove_invalid(feats_prev, feats_curr, status);
 
-    remove_outliers(feats_prev, feats_curr);
+    remove_outliers_with_F(feats_prev, feats_curr);
     Mat E, rvec, tvec;
     Mat dR;
     vector<uchar> inliers;
@@ -519,7 +522,8 @@ int mono_vo::mono_register(Mat &keyframe, Mat &img, vector<Point2f> &feats_prev,
         feats_curr.push_back(p2);
         feat3ds_prev.push_back(feat3ds[i]);
     }
-    remove_outliers(feats_prev, feats_curr, feat3ds_prev);
+    remove_outliers_with_F(feats_prev, feats_curr, feat3ds_prev);
+    remove_outliers_with_E(feats_prev, feats_curr, feat3ds_prev);
     visualize_features(img, feats_prev, feats_curr);
     //6. update keyframe
 
@@ -589,11 +593,13 @@ void mono_vo::update(Mat &img)
                                       rvec, tvec,
                                       false, 30, 6.0, 0.99, inliers, cv::SOLVEPNP_ITERATIVE);
 
-        cout << "rvec: " << rvec << endl;
-        cout << "tvec: " << tvec << endl;
+
         if (ret)
         {
             printf("func: %s, %d\n", __FUNCTION__, __LINE__);
+
+            cout << "rvec: " << rvec << endl;
+            cout << "tvec: " << tvec << endl;
             cv::Rodrigues(rvec, dR);
 
             Matrix3d R;
