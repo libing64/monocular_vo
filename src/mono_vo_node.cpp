@@ -125,12 +125,18 @@ void publish_cloud(mono_vo &mono)
     if (mono.feat3ds.size())
     {
         pcl::PointCloud<pcl::PointXYZI> cloud;
+        Matrix3d Ric = q_cam2imu.toRotationMatrix();
         for (int i = 0; i < mono.feat3ds.size(); i++)
         {
+            Vector3d pc;
+            pc(0) = mono.feat3ds[i].x;
+            pc(1) = mono.feat3ds[i].y;
+            pc(2) = mono.feat3ds[i].z;
+            Vector3d pi = Ric * pc;
             PointType p;
-            p.x = mono.feat3ds[i].x;
-            p.y = mono.feat3ds[i].y;
-            p.z = mono.feat3ds[i].z;
+            p.x = pi(0);
+            p.y = pi(1);
+            p.z = pi(2);
             cloud.points.push_back(p);
         }
 
