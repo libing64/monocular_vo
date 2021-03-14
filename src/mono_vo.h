@@ -5,7 +5,6 @@
 #include <vector>
 #include <map>
 #include <opencv2/opencv.hpp>
-#include <opencv2/core/eigen.hpp>
 #include <sensor_msgs/CameraInfo.h>
 
 #include <pcl/point_cloud.h>
@@ -590,16 +589,9 @@ void mono_vo::update(Mat &img)
         Mat rvec, tvec;
         Mat dR;
         vector<uchar> inliers;
-        //add camera pose init para
-        Matrix3d rr_guess = q.inverse().toRotationMatrix();
-        Vector3d tt_guess = -rr_guess * t;
-
-        eigen2cv(rr_guess, rvec);
-        eigen2cv(tt_guess, tvec);
-
         bool ret = cv::solvePnPRansac(feat3ds_prev, feats_curr, camera_matrix, dist_coeffs,
                                       rvec, tvec,
-                                      true, 30, 6.0, 0.95, inliers, cv::SOLVEPNP_ITERATIVE);
+                                      false, 30, 6.0, 0.95, inliers, cv::SOLVEPNP_ITERATIVE);
 
 
         if (ret)
