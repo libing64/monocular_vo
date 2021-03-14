@@ -614,9 +614,21 @@ void mono_vo::update(Mat &img)
                 tt(i) = tvec.at<double>(i);
             }
 
-            t = -R.transpose() * tt;
-            q = Quaterniond(R.transpose());
+            Vector3d tc = -R.transpose() * tt;
+            Quaterniond qc = Quaterniond(R.transpose());
+            double angle = qc.angularDistance(q);
+            double dist = (tc - t).norm();
 
+            if (angle < (90.0 * M_PI / 180.0) && dist < 10.0)
+            {
+                t = -R.transpose() * tt;
+                q = Quaterniond(R.transpose());
+            } else 
+            {
+                cout << "fail for solvePnP" << endl;
+                map_reset();
+                return;
+            }
             cout << "mono track: " << q.coeffs().transpose() << "  t: " << t.transpose() << endl;
         } else 
         {
