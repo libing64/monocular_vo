@@ -18,10 +18,10 @@
   * update triangulated points to map
 
 
-![kitti00](https://github.com/libing64/mono_vo/blob/mono_vo_se3/image/mono_vo_se3.png)
+![kitti00](https://github.com/libing64/mono_vo/blob/mono_vo_se3_devel/image/mono_vo_se3.png)
 
 
-![kitti00](https://github.com/libing64/mono_vo/blob/mono_vo_se3/image/mono_vo_se3.gif)
+![kitti00](https://github.com/libing64/mono_vo/blob/mono_vo_se3_devel/image/mono_vo_se3.gif)
 
 ## 1.2 Building
 ```
